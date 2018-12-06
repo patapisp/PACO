@@ -33,14 +33,4 @@ def pol2cart(r, phi):
     y = r*np.sin(phi)
     return (x,y)
 
-def get_patch(img_sequence, px, k):
-    """
-    gets patch at given pixel with size k for the given img sequence
-    """
-    nx, ny = np.shape(img_sequence[0])[:2]
-    if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
-        print("pixel out of range")
-        return None
-    patch = [img_sequence[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(img_sequence))]
-    return patch
 

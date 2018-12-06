@@ -35,3 +35,26 @@ class PACO:
         angles_pol = np.array(list(zip(*angles_ind)))
         angles_px = np.array(pol2cart(angles_pol[0], angles_pol[1]))+dim
         return
+
+    def h_theta(n, model, **kwargs):
+        return model(n, **kwargs)
+
+    def Chat(rho, S, F):
+        return (1-rho)*S + rho*F
+    
+    def Shat(r, m, T):
+        return (1/T)*np.sum([np.dot((p-m),(p-m).T) for p in r], axis=0)
+    
+    def Fhat(S):
+        return np.diag(np.diag(S))
+
+    def rho_hat(S, T):
+        top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2*np.sum(np.array([d**2 for d in np.diag(S)])))
+        bot = ((T+1)*(np.trace(np.dot(S,S))**2-np.sum(np.array([d**2 for d in np.diag(S)]))))
+        return top/bot
+
+    def al(hfl, Cfl_inv):
+        return np.dot(hfl.T, np.dot(Cfl_inv, hfl))
+    
+    def bl(hfl, Cfl_inv, r_fl, m_fl):
+        return np.dot(hfl.T, np.dot(Cfl_inv, (r_fl-m_fl)))
