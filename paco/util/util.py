@@ -1,0 +1,46 @@
+"""
+This file will contain basic utility functions
+
+- Rotations
+- Coordinate transformations
+- Any other commonly used calculations
+"""
+
+import numpy as np
+import cv2
+
+
+def rotateImage(image, angle):
+    
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    return result
+
+def gaussian2d(x,y,A, sigma):
+    return A*np.exp(-(x**2+y**2)/(2*sigma**2))
+
+def cart2pol(x,y):
+    """
+    Takes cartesian (2D) coordinates and transforms them into polar.
+    """
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return(rho, phi)
+
+def pol2cart(r, phi):
+    x = r*np.cos(phi)
+    y = r*np.sin(phi)
+    return (x,y)
+
+def get_patch(img_sequence, px, k):
+    """
+    gets patch at given pixel with size k for the given img sequence
+    """
+    nx, ny = np.shape(img_sequence[0])[:2]
+    if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
+        print("pixel out of range")
+        return None
+    patch = [img_sequence[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(img_sequence))]
+    return patch
+
