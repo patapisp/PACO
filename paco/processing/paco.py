@@ -1,11 +1,12 @@
 """
 This file will implement AGORITHM 1 from the PACO paper
 """
-from .. import core
+from .. import core.ReadInFitsFile
 from ..util import *
 
 class PACO:
     def __init__():
+        self.FitsInput
         self.im_stack = []
         self.k = -1
         return
@@ -13,6 +14,7 @@ class PACO:
     """
     Utility Functions
     """
+    
     def set_patch_size(npx):
         self.k = npx
     
@@ -98,5 +100,10 @@ class PACO:
         """
         return np.dot(hfl.T, np.dot(Cfl_inv, (r_fl-m_fl)))
 
-
-
+    def open_fits_images(file_name, directory):
+        """
+        Read in the fits file
+        """
+        self.FitsInput = ReadInFitsFile.ReadInFitsFile(file_name,directory)
+        self.FitsInput.open_one_fits(file_name)
+        self.im_stack = FitsInput.images
