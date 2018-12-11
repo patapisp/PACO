@@ -1,16 +1,17 @@
 """
-This file will implement AGORITHM 1 from the PACO paper
+This file will implement ALGORITHM 1 from the PACO paper
 """
-from .. import core.ReadInFitsFile
-from ..util import *
+import paco.core.ReadInFitsFile
+from paco.util.util import *
 
 class PACO:
     def __init__(self,
+                 patch_size = 49,
                  file_name = None,
                  directory = None):
-        self.FitsInput
+        self.FitsInput = None
         self.im_stack = []
-        self.k = 49 # defaults to paper value
+        self.k = patch_size # defaults to paper value
         return
 
     """
@@ -25,6 +26,9 @@ class PACO:
     def get_image_sequence(self):
         return self.im_stack
 
+    def get_patch_size(self):
+        return self.k
+    
     def open_fits_images(self,file_name, directory):
         """
         Read in the fits file
@@ -33,7 +37,7 @@ class PACO:
         self.FitsInput.open_one_fits(file_name)
         self.im_stack = FitsInput.images
         
-    def create_circular_mask(self,w, h, center=None, radius=None):
+    def create_circular_mask(self,w, h,radius=None, center=None):
         """
         Returns a 2D boolean mask given some radius and location
         :w: width, number of x pixels
@@ -47,7 +51,7 @@ class PACO:
             radius = min(center[0], center[1], w-center[0], h-center[1])
         X, Y = np.ogrid[:w, :h]
         dist2 = (X - center[0])**2 + (Y-center[1])**2
-        mask = d2 <= radius**2
+        mask = dist2 <= radius**2
         return mask
 
     def get_patch(self,px, k):
@@ -59,9 +63,13 @@ class PACO:
         #if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
         #    print("pixel out of range")
         #    return None
-        #patch = [self.im_stack[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(self.im_stack))]
-        mask = self.create_circular_mask(nx,ny,px,radius)        
-        patch= [self.im_stack[i][np.where(mask)] for i in range(len(self.im_stack))]    
+        patch = [self.im_stack[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(self.im_stack))]
+        mask = self.create_circular_mask(2*k,2*k,radius)
+        patch = np.where(mask,patch)
+
+        print("Get patch")
+        print(mask.shape)
+        print(patch.shape)
         return patch
 
     """
@@ -93,7 +101,7 @@ class PACO:
         Ŝ
 
         Sample covariance matrix
-        r: obcserved intensity at position θk and time tl
+        r: observed intensity at position θk and time tl
         m: mean of all background patches at position θk
         T: number of temporal frames
         """
@@ -118,6 +126,7 @@ class PACO:
         """
         top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2*np.sum(np.array([d**2 for d in np.diag(S)])))
         bot = ((T+1)*(np.trace(np.dot(S,S))**2-np.sum(np.array([d**2 for d in np.diag(S)]))))
+        print((top/bot).shape)
         return top/bot
 
     def al(self,hfl, Cfl_inv):

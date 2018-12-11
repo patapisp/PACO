@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "043870d8fa56b6c5a8c17cf94807fa919171a82fb6ee50e0d4b88fff06c0b859"
+            "sha256": "cc0d28430cc81ac9d5486f289297a13a1d14be4e3073833fd9d8382cfca1612b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,28 @@
         ]
     },
     "default": {
+        "astropy": {
+            "hashes": [
+                "sha256:1e10e0f099f54f2c119e70863b10ff64c6b3ad30e9fa47e648023d701d6fb5d1",
+                "sha256:28eda38d4305a1ff21f1e01f64463a1f498977af2ac2917a871fd894faee0536",
+                "sha256:5356f46863febcc643b5d902e3d9dce7e8dbfb5036055a1e7cb9972c2c3cbf87",
+                "sha256:61382696e3b6a30f2d19d46bdcbf699df46a0c5a5a2d15a2e4c4b792c77ee008",
+                "sha256:6ffbd99b13eb3b5e9ad4b1a2c872a91cb730f8121d248b8fde85ed16314e0266",
+                "sha256:734a3d12cb9333b88105997e505fb73dfe47f3b5a650d69ba578a7cdd040bd72",
+                "sha256:7789a5371bfc8aed970713ca477ab45781f166f4b09c80fd80de1170bcc59a64",
+                "sha256:87fe4c9632f7a4e0997fe4767e17c62c638a9928021235f0133e19bcfbcf964f",
+                "sha256:8f755516479974b37b426134b01d776b0d744aa77d9e0b37720877d030cadc10",
+                "sha256:920e4c5f709856e495a24a130b6b4d1b0c8a14a937fa44c3adfca201c7c1c362",
+                "sha256:a78114f3cd881e7ad40632dc49fdb4cddc2c885d720b23c935479a1d8e890929",
+                "sha256:b239d71e62710c4bb86224eb26014c2b8bfebc742857274a228da6a1623afae0",
+                "sha256:b48800fc2841fe72aa51f8badbb749bb7a5354836398c9fbdf9c30d9c69d2b53",
+                "sha256:bceafa0e6dcfb3afe6079269edfddddfaddcac25dc67a457563dd41b4da81c42",
+                "sha256:c3d48f2f5d10c1bc98c25d77335cd75880b11dd21649c5b15babb3fdf11466f7",
+                "sha256:d7d51bbd68a518950501d579093f2ef9be143b9209ef81b39b0331ce9f63b8ac"
+            ],
+            "index": "pypi",
+            "version": "==3.1"
+        },
         "backcall": {
             "hashes": [
                 "sha256:38ecd85be2c1e78f77fd91700c76e14667dc21e2713b63876c0eb901196e01e4",

@@ -12,7 +12,7 @@ import warnings
 from astropy.io import fits
 
 
-class ReadInFitsFile(ReadInFile):
+class ReadInFitsFile():
     def __init__(self,
                  name_in = None,
                  dir_in = None):

@@ -11,6 +11,7 @@ matplotlib = "*"
 opencv-python = "*"
 six = "*"
 jupyter = "*"
+astropy = "*"
 
 [requires]
 python_version = "3.7"

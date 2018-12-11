@@ -1,8 +1,17 @@
 from .. import core
-from ..util import *
+from paco.util.util import *
+from .paco import PACO
 
 class FullPACO(PACO):
-    def __init__(self):
+    def __init__(self,
+                 patch_size = 49,
+                 file_name = None,
+                 directory = None):
+        self.filename = file_name
+        self.directory = directory
+        self.FitsInput = None
+        self.im_stack = []
+        self.k = patch_size # defaults to paper value
         return
     """
     Algorithm Functions
@@ -31,20 +40,26 @@ class FullPACO(PACO):
         angles_px = np.array(pol2cart(angles_pol[0], angles_pol[1]))+dim
         return self.im_stack[-1]
 
-    def PACO(self,modal_name):
+    def test(self):
+        print("Test")
+        return
+    
+    def PACO(self, phi0s, model_name="gaussian2d"):
         # Generate list of initial points to test (how many, where?)
-        N = np.shape(self.im_stack[0])[0]
+        N = np.shape(self.im_stack[0])
         a = np.zeros(N)
         b = np.zeros(N)
-        T = self.len(im_stack)
-        for i in range(N[0]):
-            for j in range(N[1]):
-                a = 0
-                b = 0
+        T = len(self.im_stack)
+        print(N)
+        i = 0
+        for p0 in phi0s:
                 for l in range(T):
-                    patch = self.get_patch([i,j],self.k)
-                    m = np.mean(patch3030, axis=0)
-                    S = self.sample_covariance(patch3030, m, T)
+                    patch = self.get_patch(p0, self.k)
+                    print(patch.shape)
+                    m = np.mean(patch, axis=0)
+                    print(m.shape)
+                    S = self.sample_covariance(patch, m, T)
+                    print(S.shape)
                     rho = self.shrinkage_factor(S, T)
                     F = self.diag_sample_covariance(S)
                     C = self.background_covariance(rho, S, F)
@@ -52,7 +67,7 @@ class FullPACO(PACO):
                     plt.imshow(Cinv)
                     h = self.model_function(int(np.sqrt(self.k)),model_name)
 
-                    a[i][j] = np.sum([self.al(h, Cinv) for r in patch],axis=0)
-                    b[i][j] = np.sum([self.bl(h, Cinv, p, m) for p in patch], axis=0)
+                    a[i] = np.sum([self.al(h, Cinv) for r in patch],axis=0)
+                    b[i] = np.sum([self.bl(h, Cinv, p, m) for p in patch], axis=0)
         return b/np.sqrt(a)
 
