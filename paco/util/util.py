@@ -20,6 +20,11 @@ def rotateImage(image, angle):
 def gaussian2d(x,y,A, sigma):
     return A*np.exp(-(x**2+y**2)/(2*sigma**2))
 
+def gaussian2d_model(n,sigma):
+    dim = int(n/2)
+    x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+    return np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
+
 def cart2pol(x,y):
     """
     Takes cartesian (2D) coordinates and transforms them into polar.

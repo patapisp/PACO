@@ -57,18 +57,17 @@ class PACO:
     def get_patch(self,px, k):
         """
         gets patch at given pixel px with size k for the current img sequence
+        
+        Patch returned will be a square of dim 2k x 2k
+        A circular mask will be created separately to select
+        which pixels to examine within a patch.
         """
         radius = int(np.sqrt(k))
         nx, ny = np.shape(self.im_stack[0])[:2]
-        #if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
-        #    print("pixel out of range")
-        #    return None
-        patch = [self.im_stack[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(self.im_stack))]
-        mask = self.create_circular_mask(2*k,2*k,radius)
-        patch = np.where(mask,patch)
-
-        print("Get patch")
-        print(mask.shape)
+        if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
+            print("pixel out of range")
+            return None
+        patch = np.array([self.im_stack[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(self.im_stack))])
         print(patch.shape)
         return patch
 
@@ -80,7 +79,7 @@ class PACO:
         h_θ
 
         n: mean
-        model: numpy statistical model
+        model: numpy statistical model (need to import numpy module for this)
         **kwargs: additional arguments for model
         """
         return model(n, **kwargs)
@@ -140,6 +139,6 @@ class PACO:
         """
         b_l
         """
-        return np.dot(self,hfl.T, np.dot(Cfl_inv, (r_fl-m_fl)))
+        return np.dot(hfl.T, np.dot(Cfl_inv, (r_fl-m_fl)))
 
 
