@@ -26,6 +26,13 @@ class PACO:
     def get_image_sequence(self):
         return self.im_stack
 
+    def set_angles(self,angles = []):
+        if len(angles) == 0:
+            #do stuff
+            return
+        else:
+            return angles
+                
     def get_patch_size(self):
         return self.k
     
@@ -62,13 +69,11 @@ class PACO:
         A circular mask will be created separately to select
         which pixels to examine within a patch.
         """
-        radius = int(np.sqrt(k))
         nx, ny = np.shape(self.im_stack[0])[:2]
         if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
-            print("pixel out of range")
+            #print("pixel out of range")
             return None
-        patch = np.array([self.im_stack[i][px[0]-k:px[0]+k, px[1]-k:px[1]+k] for i in range(len(self.im_stack))])
-        print(patch.shape)
+        patch = np.array([self.im_stack[i][int(px[0])-k:int(px[0])+k, int(px[1])-k:int(px[1])+k] for i in range(len(self.im_stack))])
         return patch
 
     """
@@ -84,7 +89,7 @@ class PACO:
         """
         return model(n, **kwargs)
 
-    def background_covariance(self,rho, S, F):
+    def covariance(self,rho, S, F):
         """
         Ĉ
 
@@ -104,7 +109,8 @@ class PACO:
         m: mean of all background patches at position θk
         T: number of temporal frames
         """
-        return (1/T)*np.sum([np.dot((p-m),(p-m).T) for p in r], axis=0)
+        S =  (1/T)*np.sum([np.kron((p-m),(p-m).T) for p in r], axis=0)
+        return S
     
     def diag_sample_covariance(self,S):
         """
@@ -125,20 +131,24 @@ class PACO:
         """
         top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2*np.sum(np.array([d**2 for d in np.diag(S)])))
         bot = ((T+1)*(np.trace(np.dot(S,S))**2-np.sum(np.array([d**2 for d in np.diag(S)]))))
-        print((top/bot).shape)
         return top/bot
 
     def al(self,hfl, Cfl_inv):
         """
         a_l
         """
-
-        return np.dot(hfl.T, np.dot(Cfl_inv, hfl))
+        hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        a = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], hfl[i])) for i in range(len(hfl))])
+        return a
+        
     
     def bl(self,hfl, Cfl_inv, r_fl, m_fl):
         """
         b_l
         """
-        return np.dot(hfl.T, np.dot(Cfl_inv, (r_fl-m_fl)))
+        hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1]*r_fl.shape[2]))
+        m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
+        return np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
 
 

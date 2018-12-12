@@ -38,4 +38,9 @@ def pol2cart(r, phi):
     y = r*np.sin(phi)
     return (x,y)
 
+def int_pol2cart(r,phi):
+    x = r*np.cos(phi)
+    y = r*np.sin(phi)
+    return (x.astype(int),y.astype(int))
+
 
