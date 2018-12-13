@@ -109,7 +109,7 @@ class PACO:
         m: mean of all background patches at position θk
         T: number of temporal frames
         """
-        S =  (1/T)*np.sum([np.kron((p-m),(p-m).T) for p in r], axis=0)
+        S =  (1/T)*np.sum([np.outer((p-m).flatten(),(p-m).flatten().T) for p in r], axis=0)
         return S
     
     def diag_sample_covariance(self,S):
@@ -147,7 +147,7 @@ class PACO:
         b_l
         """
         hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
-        r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1]*r_fl.shape[2]))
+        r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
         m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
         return np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
 

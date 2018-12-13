@@ -111,13 +111,12 @@ class FullPACO(PACO):
                 F = self.diag_sample_covariance(S)
                 C = self.covariance(rho, S, F)
                 Cinv[i][l] = np.linalg.inv(C)
-
                 # Setup the model
                 h[i][l] = self.model_function(2*k,model_name,sigma=5)
 
             # At this location, calculate a and b    
             a[i] = np.sum(self.al(h[i], Cinv[i]),axis=0)
-            b[i] = np.sum(self.bl(h[i], Cinv[i], patch[i][j], m[i]), axis=0)
+            b[i] = np.sum(self.bl(h[i], Cinv[i], patch[i], m[i]), axis=0)
         print("Done")
         return a,b
 
