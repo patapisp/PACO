@@ -130,7 +130,7 @@ class PACO:
         T: Number of temporal frames
         """
         top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2*np.sum(np.array([d**2 for d in np.diag(S)])))
-        bot = ((T+1)*(np.trace(np.dot(S,S))**2-np.sum(np.array([d**2 for d in np.diag(S)]))))
+        bot = ((T+1)*(np.trace(np.dot(S,S))-np.sum(np.array([d**2 for d in np.diag(S)]))))
         return top/bot
 
     def al(self,hfl, Cfl_inv):
@@ -149,6 +149,7 @@ class PACO:
         hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
         r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
         m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
-        return np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
+        b = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
+        return b
 
 
