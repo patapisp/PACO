@@ -32,7 +32,7 @@ def cart_to_pol(coords):
     if len(coords.shape) == 1:
         rho = np.sqrt(coords[0]**2 + coords[1]**2)
         phi = np.arctan2(coords[1], coords[0])
-        return (rho,phi)
+        return np.array((rho,phi))
     else:
         rho = np.sqrt(coords[:,0]**2 + coords[:,1]**2)
         phi = np.arctan2(coords[:,1], coords[:,0])
@@ -42,7 +42,7 @@ def pol_to_cart(coords):
     if len(coords.shape) == 1:
         x = coords[0]*np.cos(coords[1])
         y = coords[0]*np.sin(coords[0])
-        return (x,y)
+        return np.array((x,y))
     else:
         x = coords[:,0]*np.cos(coords[:,1])
         y = coords[:,0]*np.sin(coords[:,1])
@@ -52,7 +52,7 @@ def int_pol_to_cart(coords):
     if len(coords.shape) == 1:
         x = int(coords[0]*np.cos(coords[1]))
         y = int(coords[0]*np.sin(coords[0]))
-        return (x,y)
+        return np.array((x,y))
     else:
         x = coords[:,0]*np.cos(coords[:,1]).astype(int)
         y = coords[:,0]*np.sin(coords[:,1]).astype(int)

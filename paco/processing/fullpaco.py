@@ -33,14 +33,14 @@ class FullPACO(PACO):
         # Setup pixel coordinates
         x,y = np.meshgrid(np.arange(0,self.im_stack.shape[1]),np.arange(0,self.im_stack.shape[2]))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
-
         # Compute a,b
-        a,b = self.PACO_calc(np.array(phi0s),angles)
+        a,b,c = self.PACO_calc(np.array(phi0s),angles)
 
         # Reshape into a 2D image, with the same dimensions as the input images
         a = np.reshape(a,(self.im_stack.shape[1],self.im_stack.shape[2]))
         b = np.reshape(b,(self.im_stack.shape[1],self.im_stack.shape[2]))
-        return a,b
+        c = np.reshape(c,(self.im_stack.shape[1],self.im_stack.shape[2]))
+        return a,b,c
     
     def PACO_calc(self, phi0s, angles, model_name=gaussian2d_model):
         """
@@ -58,6 +58,7 @@ class FullPACO(PACO):
         npx = len(phi0s)  # Number of pixels in an image
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
+        c = np.zeros(npx)
         
         T = len(self.im_stack) # Number of temporal frames
         k = self.k             # Half-width of a patch
@@ -70,35 +71,37 @@ class FullPACO(PACO):
         Cinv  = np.zeros((npx,T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
         h     = np.zeros((npx,T,2*k,2*k)) # The off axis PSF at each point
         print("Running PACO...")
-
+        # Set up coordinates so 0 is at the center of the image                   
+        dim = (N/2)
+        x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+        r,theta = grid_cart_to_pol(x,y)
+        theta = (theta + np.pi)
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
-
-            # Set up coordinates so 0 is at the center of the image
-            dim = (N/2)
-            x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+            # Current pixel
             phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
-
             # Convert to polar coordinates
             rphi0 = cart_to_pol(phi0)
-            r,theta = grid_cart_to_pol(x,y)
+            rphi0[1] = rphi0[1]
 
             # Convert the input angles from degrees to radians
-            angles_rad = np.array([a*np.pi/180 for a in angles])-rphi0[1]
-
+            angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
+    
             # Rotate the polar coordinates by each frame angle
-            angles_ind = [[-rphi0[0],rphi0[0]-phi] for phi in angles_rad]
+            angles_ind = [[rphi0[0],phi] for phi in angles_rad]
             angles_pol = np.array(list(zip(*angles_ind)))
 
             # Convert from polar to cartesian and pixel coordinates
             angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
-
+            #plt.imshow(self.im_stack[0])
+            #plt.plot(angles_px[0], angles_px[1], 'rx')
+            #sys.exit(1)
             # Transpose to tuples
             angles_px = angles_px.T
-            
+
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
@@ -117,8 +120,9 @@ class FullPACO(PACO):
             # At this location, calculate a and b    
             a[i] = np.sum(self.al(h[i], Cinv[i]),axis=0)
             b[i] = np.sum(self.bl(h[i], Cinv[i], patch[i], m[i]), axis=0)
+            c[i] = i
         print("Done")
-        return a,b
+        return a,b,c
 
     def plotting(self,patch, vmax = 5):
         # Just a temp function, ignore
