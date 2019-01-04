@@ -32,7 +32,7 @@ class FullPACO(PACO):
         """
 
         # Setup pixel coordinates
-        x,y = np.meshgrid(np.arange(0,self.im_stack.shape[1], step = 1/resolution),np.arange(0,self.im_stack.shape[2], step = 1/resolution))
+        x,y = np.meshgrid(np.arange(0,self.im_stack.shape[1],),np.arange(0,self.im_stack.shape[2]))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
         a,b = self.PACO_calc(np.array(phi0s),angles)
@@ -93,14 +93,14 @@ class FullPACO(PACO):
 
             # Convert from polar to cartesian and pixel coordinates
             angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
-            
+
             # Transpose to tuples
             angles_px = angles_px.T
-
+            angles_px = np.fliplr(angles_px)
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
-                #fig,ax = plt.subplots(nrows=2,ncols=3,figsize=(12,8))
+                #fig,ax = plt.subplots(nrows=1,ncols=3,figsize=(12,8))
                 #ax = ax.flatten()
                 patch[i][l] = self.get_patch(ang, k) # Get the column of patches at this point
                 #ax[0].imshow(patch[i][l][l])
@@ -126,7 +126,7 @@ class FullPACO(PACO):
                 # Setup the model
                 h[i][l] = self.model_function(2*k,model_name,sigma=5)
 
-                w = np.dot(Cinv[i][l],h[i][l].flatten())
+                #w = np.dot(Cinv[i][l],h[i][l].flatten())
                 #a[i] += np.dot(w.T,h[i][l].flatten())
                 #b[i] += np.dot(w.T,(patch[i][l][l] - m[i][l]).flatten())
                 #sys.exit(1)

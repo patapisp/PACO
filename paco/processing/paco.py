@@ -2,6 +2,7 @@
 This file will implement ALGORITHM 1 from the PACO paper
 """
 import paco.core.ReadInFitsFile
+import matplotlib.pyplot as plt
 from paco.util.util import *
 
 class PACO:
@@ -137,7 +138,11 @@ class PACO:
         """
         a_l
         """
+        #hflT = np.zeros(hfl.shape)
+        #for j,h in enumerate(hfl):
+        #    hflT[j] = h.T
         hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
         a = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], hfl[i])) for i in range(len(hfl))])
         return a
         
@@ -146,7 +151,20 @@ class PACO:
         """
         b_l
         """
+        #print("Calculating b")
+        #fig,ax = plt.subplots(nrows=2,ncols=3,figsize=(12,8))
+        #ax = ax.flatten()
+        #ax[0].imshow(hfl[0])
+        #ax[1].imshow(hfl[4])
+        #ax[2].imshow(r_fl[1][1])
+        #ax[3].imshow(r_fl[3][3])
+        #ax[4].imshow(m_fl[0])
+        #ax[5].imshow(Cfl_inv[0])
+        #hflT = np.zeros(hfl.shape)
+        #for j,h in enumerate(hfl):
+        #    hflT[j] = h.T
         hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
         r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
         m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
         b = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
