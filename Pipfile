@@ -12,6 +12,8 @@ opencv-python = "*"
 six = "*"
 jupyter = "*"
 astropy = "*"
+scipy = "*"
+pillow = "*"
 
 [requires]
 python_version = "3.7"

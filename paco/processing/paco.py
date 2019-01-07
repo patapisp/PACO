@@ -27,6 +27,11 @@ class PACO:
     def get_image_sequence(self):
         return self.im_stack
 
+    def rescale_image_sequence(self,scale):
+        for i,img in enumerate(self.im_stack):
+            self.im_stack[i] = resizeImage(img,scale)
+        return
+    
     def set_angles(self,angles = []):
         if len(angles) == 0:
             #do stuff
