@@ -13,6 +13,7 @@ class PACO:
         self.FitsInput = None
         self.im_stack = []
         self.k = patch_size # defaults to paper value
+        self.T = -1
         return
 
     """
@@ -23,6 +24,7 @@ class PACO:
 
     def set_image_sequence(self,imgs):
         self.im_stack = imgs
+        self.T = len(imgs)
 
     def get_image_sequence(self):
         return self.im_stack
