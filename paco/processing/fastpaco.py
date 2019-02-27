@@ -46,7 +46,7 @@ class FastPACO(PACO):
 
 
     def compute_statistics(self, phi0s, angles, scale = 1, model_name=gaussian2d_model):
-    """
+        """
         PACO_calc
         
         This function iterates of a list of test points (phi0) and a list
@@ -56,6 +56,8 @@ class FastPACO(PACO):
         :angles: Array of angles from frame rotation
         :model_name: Name of the template for the off-axis PSF
         """
+    
+        print("Precomputing Statistics...")
         N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
         npx = len(phi0s)  # Number of pixels in an image
         try:
@@ -64,69 +66,51 @@ class FastPACO(PACO):
             print("Position grid does not match pixel grid.")
             sys.exit(1)
         
-        a = np.zeros(npx) # Setup output arrays
-        b = np.zeros(npx)
-        T = len(self.im_stack) # Number of temporal frames
-        k = int(np.ceil(scale * self.k ))            # Half-width of a patch, just for readability
+        T = len(self.im_stack)            # Number of temporal frames
+        k = int(np.ceil(scale * self.k )) # Half-width of a patch, just for readability
+        try:
+            assert N%2 == 0
+        except AssertionError:
+            print("Odd number of pixels.")
+            sys.exit(1)
 
-        print(npx,T,k)
+        dim = int(N/2)
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
-        m     = np.zeros((T,2*k,2*k)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
-        h_template = self.model_function(4*k,model_name,sigma=k)
-        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point
-        print("Running PACO...")
+        patch = np.zeros((T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
+        m     = np.zeros((N,N,2*k,2*k)) # the mean of a temporal column of patches at each pixel
+        Cinv  = np.zeros((N,N,4*k*k,4*k*k)) # the inverse covariance matrix at each point
+        h_template = self.model_function(2*k,model_name,sigma=2)
+        h = np.zeros((N,N,2*k,2*k)) # The off axis PSF at each point
+
         # Set up coordinates so 0 is at the center of the image                   
-        dim = (N/2)
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
-        c = np.zeros(npx)
-        d = np.zeros(npx)
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
             # Current pixel
-            phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
-            # Convert to polar coordinates
-            rphi0 = cart_to_pol(phi0)
-            angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
-    
-            # Rotate the polar coordinates by each frame angle
-            angles_ind = [[rphi0[0],phi] for phi in angles_rad]
-            angles_pol = np.array(list(zip(*angles_ind)))
+            #phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
+            patch = self.get_patch(p0, k) # Get the column of patches at this point
+            if patch is None:
+                continue
+            m[p0[0]][p0[1]] = np.mean(patch, axis=0) # Calculate the mean of the column
 
-            # Convert from polar to cartesian and pixel coordinates
-            angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
-            angles_px = angles_px.T
-            angles_px = np.fliplr(angles_px)
+            # Calculate the covariance matrix
+            S = self.sample_covariance(patch, m[p0[0]][p0[1]], T)
+            rho = self.shrinkage_factor(S, T) 
+            F = self.diag_sample_covariance(S)
+            C = self.covariance(rho, S, F)
             
-            # Iterate over each temporal frame/each angle
-            # Same as iterating over phi_l
-            for l,ang in enumerate(angles_px):
-                patch[l] = self.get_patch(ang, k) # Get the column of patches at this point
-                m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
-                # Calculate the covariance matrix
-                S = self.sample_covariance(patch[l], m[l], T)
-                rho = self.shrinkage_factor(S, T) 
-                F = self.diag_sample_covariance(S)
-                C = self.covariance(rho, S, F)
-                Cinv[l] = np.linalg.inv(C)
-                if scale!=1:
-                    h[l] = resizeImage(h_template,scale)
-                else:
-                    h[l] = h_template
-            c[i] = np.dot(Cinv,h.flatten())
-            d[i] = np.dot(c[i].T,h.flatten())
-        return c,d
+            Cinv[p0[0]][p0[1]] = np.linalg.inv(C)
+            if scale!=1:
+                h[p0[0]][p0[1]] = resizeImage(h_template,scale)
+            else:
+                h[p0[0]][p0[1]] = h_template
+        return Cinv,m,h
 
-    def compute_SNR(self,c,d):
-        
-        return
-    
     def PACO_calc(self, phi0s, angles, scale = 1, model_name=gaussian2d_model):
         """
         PACO_calc
@@ -151,19 +135,20 @@ class FastPACO(PACO):
         T = len(self.im_stack) # Number of temporal frames
         k = int(np.ceil(scale * self.k ))            # Half-width of a patch, just for readability
 
-        print(npx,T,k)
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
-        m     = np.zeros((T,2*k,2*k)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
+        patch = np.zeros((T,T,2*k,2*k))#a patch is a small, 2d selection of pixels around a given point
         h_template = self.model_function(4*k,model_name,sigma=5)
         h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point
-        print("Running PACO...")
+
+        
         # Set up coordinates so 0 is at the center of the image                   
         dim = (N/2)
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+        Cinv,m,h = self.compute_statistics(phi0s, angles, scale = 1, model_name=gaussian2d_model)
+        
+        print("Running PACO...")
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
@@ -183,26 +168,23 @@ class FastPACO(PACO):
             angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
             angles_px = angles_px.T
             angles_px = np.fliplr(angles_px)
-            
+
+            if(int(np.max(angles_px.flatten()))>=N or int(np.min(angles_px.flatten()))<0):
+                a[i] = np.nan
+                b[i] = np.nan
+                continue
+            Cinlst = np.array([Cinv[int(a[0])][int(a[1])] for a in angles_px])
+            mlst = np.array([m[int(a[0])][int(a[1])] for a in angles_px])
+            hlst = np.array([h[int(a[0])][int(a[1])] for a in angles_px])
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
                 patch[l] = self.get_patch(ang, k) # Get the column of patches at this point
-                m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
-                # Calculate the covariance matrix
-                S = self.sample_covariance(patch[l], m[l], T)
-                rho = self.shrinkage_factor(S, T) 
-                F = self.diag_sample_covariance(S)
-                C = self.covariance(rho, S, F)
-                Cinv[l] = np.linalg.inv(C)
-                if scale!=1:
-                    h[l] = resizeImage(h_template,scale)
-                else:
-                    h[l] = h_template
 
             # Calculate a and b, matrices
-            a[i] = np.sum(self.al(h, Cinv),axis=0)
-            b[i] = np.sum(self.bl(h, Cinv, patch, m), axis=0)
+            #print(hlst.shape,Cinlst.shape,patch.shape,mlst.shape)
+            a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
+            b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)
         print("Done")
         return a,b
   

@@ -73,7 +73,7 @@ class FullPACO(PACO):
         patch = np.zeros((T,T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
         m     = np.zeros((T,2*k,2*k)) # the mean of a temporal column of patches at each pixel
         Cinv  = np.zeros((T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
-        h_template = self.model_function(2*k,model_name,sigma=k)
+        h_template = self.model_function(2*k,model_name,sigma=3)
         h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point
         print("Running PACO...")
         # Set up coordinates so 0 is at the center of the image                   
@@ -130,7 +130,7 @@ class FullPACO(PACO):
                 #fig.colorbar(im1,ax = ax[2])
                 #im2 = ax[3].imshow(Cinv[l])
                 #fig.colorbar(im2,ax = ax[3])
-                
+                #print(np.min(Cinv[l]))
                 if scale!=1:
                     h[l] = resizeImage(h_template,scale)
                 else:
