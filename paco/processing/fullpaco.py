@@ -84,21 +84,9 @@ class FullPACO(PACO):
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
-            # Current pixel
-            phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
-            # Convert to polar coordinates
-            rphi0 = cart_to_pol(phi0)
-            angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
-    
-            # Rotate the polar coordinates by each frame angle
-            angles_ind = [[rphi0[0],phi] for phi in angles_rad]
-            angles_pol = np.array(list(zip(*angles_ind)))
-
-            # Convert from polar to cartesian and pixel coordinates
-            angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
-            angles_px = angles_px.T
-            angles_px = np.fliplr(angles_px)
-
+            # Get list of pixels for each rotation angle
+            angles_px = GetRotatedPixels(x,y,p0,angles)
+            
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):

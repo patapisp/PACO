@@ -45,36 +45,24 @@ class FastPACO(PACO):
         return a,b
 
 
-    def compute_statistics(self, phi0s, angles, scale = 1, model_name=gaussian2d_model):
+    def compute_statistics(self, phi0s, scale = 1, model_name=gaussian2d_model):
         """
-        PACO_calc
+        compute_statistics
         
-        This function iterates of a list of test points (phi0) and a list
-        of angles between frames to produce 'a' and b', which can be used to
-        generate a signal to noise map where SNR = b/sqrt(a) at each pixel.
+        This function computes the mean and inverse covariance matrix for
+        each patch in the image stack.
+
         :phi0s: Array of pixel locations to estimate companion position
-        :angles: Array of angles from frame rotation
         :model_name: Name of the template for the off-axis PSF
         """
     
         print("Precomputing Statistics...")
         N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
-        npx = len(phi0s)  # Number of pixels in an image
-        try:
-            assert npx == N**2
-        except AssertionError:
-            print("Position grid does not match pixel grid.")
-            sys.exit(1)
-        
+        npx = len(phi0s)  # Number of pixels in an image      
+        dim = int(N/2)
         T = len(self.im_stack)            # Number of temporal frames
         k = int(np.ceil(scale * self.k )) # Half-width of a patch, just for readability
-        try:
-            assert N%2 == 0
-        except AssertionError:
-            print("Odd number of pixels.")
-            sys.exit(1)
-
-        dim = int(N/2)
+        
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
@@ -83,16 +71,13 @@ class FastPACO(PACO):
         Cinv  = np.zeros((N,N,4*k*k,4*k*k)) # the inverse covariance matrix at each point
         h_template = self.model_function(2*k,model_name,sigma=2)
         h = np.zeros((N,N,2*k,2*k)) # The off axis PSF at each point
-
-        # Set up coordinates so 0 is at the center of the image                   
-        x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+        
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
             # Current pixel
-            #phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
             patch = self.get_patch(p0, k) # Get the column of patches at this point
             if patch is None:
                 continue
@@ -124,6 +109,7 @@ class FastPACO(PACO):
         """
         N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
         npx = len(phi0s)  # Number of pixels in an image
+        dim = (N/2)
         try:
             assert npx == N**2
         except AssertionError:
@@ -140,13 +126,10 @@ class FastPACO(PACO):
         # for patches: for each time, we need to store a column of patches
         patch = np.zeros((T,T,2*k,2*k))#a patch is a small, 2d selection of pixels around a given point
         h_template = self.model_function(4*k,model_name,sigma=5)
-        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point
-
-        
+        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point 
         # Set up coordinates so 0 is at the center of the image                   
-        dim = (N/2)
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-        Cinv,m,h = self.compute_statistics(phi0s, angles, scale = 1, model_name=gaussian2d_model)
+        Cinv,m,h = self.compute_statistics(phi0s, scale = 1, model_name=gaussian2d_model)
         
         print("Running PACO...")
         # Loop over all pixels
@@ -154,21 +137,8 @@ class FastPACO(PACO):
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
-            # Current pixel
-            phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
-            # Convert to polar coordinates
-            rphi0 = cart_to_pol(phi0)
-            angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
-    
-            # Rotate the polar coordinates by each frame angle
-            angles_ind = [[rphi0[0],phi] for phi in angles_rad]
-            angles_pol = np.array(list(zip(*angles_ind)))
 
-            # Convert from polar to cartesian and pixel coordinates
-            angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+dim
-            angles_px = angles_px.T
-            angles_px = np.fliplr(angles_px)
-
+            angles_px = GetRotatedPixels(x,y,p0,angles)
             if(int(np.max(angles_px.flatten()))>=N or int(np.min(angles_px.flatten()))<0):
                 a[i] = np.nan
                 b[i] = np.nan
