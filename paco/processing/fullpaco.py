@@ -1,3 +1,8 @@
+"""
+This module implements ALGORITHM 1 from Flasseur et al.
+It uses patch covariance to determine the signal to noise
+ratio of a signal within ADI image data.
+"""
 from .. import core
 from paco.util.util import *
 from .paco import PACO
@@ -15,10 +20,10 @@ class FullPACO(PACO):
         self.im_stack = []
         self.k = int(patch_size) # defaults to paper value
         return
+    
     """
     Algorithm Functions
-    """
-    
+    """   
     def PACO(self,angles, scale = 1, model_name=gaussian2d_model):
         """
         PACO
@@ -56,11 +61,12 @@ class FullPACO(PACO):
         """
         N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
         npx = len(phi0s)  # Number of pixels in an image
-        #try:
-        #    assert npx == N**2
-        #except AssertionError:
-        #    print("Position grid does not match pixel grid.")
-        #    sys.exit(1)
+        dim = (N/2)
+        try:
+            assert npx == N**2
+        except AssertionError:
+            print("Position grid does not match pixel grid.")
+            sys.exit(1)
         
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
@@ -70,20 +76,22 @@ class FullPACO(PACO):
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
+        patch = np.zeros((T,T,2*k,2*k)) # 2d selection of pixels around a given point
         m     = np.zeros((T,2*k,2*k)) # the mean of a temporal column of patches at each pixel
         Cinv  = np.zeros((T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
         h_template = self.model_function(2*k,model_name,sigma=3)
-        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point
+        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point    
         print("Running PACO...")
-        # Set up coordinates so 0 is at the center of the image                   
-        dim = (N/2)
+        
+        # Set up coordinates so 0 is at the center of the image                     
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
+        
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
+                
             # Get list of pixels for each rotation angle
             angles_px = GetRotatedPixels(x,y,p0,angles)
             
@@ -94,6 +102,7 @@ class FullPACO(PACO):
                 m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
                 # Calculate the covariance matrix
 
+                # Lots of plots for reference, will delete later
                 #mfig,mfax = plt.subplots(ncols = 2,figsize = (12,8))
                 #mfax = mfax.flatten()
                 #mimg = mfax[0].imshow(m[l])

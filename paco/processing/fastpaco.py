@@ -1,5 +1,8 @@
 """
-This will implement ALGORITHM 2 from the PACO paper
+This module implements ALGORITHM 2 from the PACO paper. 
+Covariance and mean statistics are computed and stored 
+before running the algorithm, but do not have subpixel
+accuracy.
 """
 from .. import core
 from paco.util.util import *
@@ -18,10 +21,10 @@ class FastPACO(PACO):
         self.im_stack = []
         self.k = int(patch_size) # defaults to paper value
         return
+
     """
     Algorithm Functions
-    """
-    
+    """    
     def PACO(self,angles, scale = 1, model_name=gaussian2d_model):
         """
         PACO
@@ -58,7 +61,7 @@ class FastPACO(PACO):
     
         print("Precomputing Statistics...")
         N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
-        npx = len(phi0s)  # Number of pixels in an image      
+        npx = len(phi0s)           # Number of pixels in an image      
         dim = int(N/2)
         T = len(self.im_stack)            # Number of temporal frames
         k = int(np.ceil(scale * self.k )) # Half-width of a patch, just for readability
@@ -66,7 +69,7 @@ class FastPACO(PACO):
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,2*k,2*k)) # a patch is a small, 2d selection of pixels around a given point
+        patch = np.zeros((T,2*k,2*k)) # 2d selection of pixels around a given point
         m     = np.zeros((N,N,2*k,2*k)) # the mean of a temporal column of patches at each pixel
         Cinv  = np.zeros((N,N,4*k*k,4*k*k)) # the inverse covariance matrix at each point
         h_template = self.model_function(2*k,model_name,sigma=2)
@@ -138,21 +141,26 @@ class FastPACO(PACO):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
 
+            # Get Angles
             angles_px = GetRotatedPixels(x,y,p0,angles)
+
+            # Ensure within image bounds
             if(int(np.max(angles_px.flatten()))>=N or int(np.min(angles_px.flatten()))<0):
                 a[i] = np.nan
                 b[i] = np.nan
                 continue
-            Cinlst = np.array([Cinv[int(a[0])][int(a[1])] for a in angles_px])
-            mlst = np.array([m[int(a[0])][int(a[1])] for a in angles_px])
-            hlst = np.array([h[int(a[0])][int(a[1])] for a in angles_px])
-            # Iterate over each temporal frame/each angle
-            # Same as iterating over phi_l
-            for l,ang in enumerate(angles_px):
-                patch[l] = self.get_patch(ang, k) # Get the column of patches at this point
+
+            # Extract relevant patches and statistics
+            for l,a in enumerate(angles_px):
+                Cinlst.append(Cinv[int(a[0])][int(a[1])])
+                mlst.append(m[int(a[0])][int(a[1])])
+                hlst.append(h[int(a[0])][int(a[1])])
+                patch[l] = self.get_patch(a, k)
+            Cinlst = np.array(Cinlst)
+            mlst   = np.array(mlst)
+            hlst   = np.array(hlst)
 
             # Calculate a and b, matrices
-            #print(hlst.shape,Cinlst.shape,patch.shape,mlst.shape)
             a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
             b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)
         print("Done")
