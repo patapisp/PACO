@@ -151,6 +151,9 @@ class FastPACO(PACO):
                 continue
 
             # Extract relevant patches and statistics
+            Cinlst = []
+            mlst = []
+            hlst = []
             for l,a in enumerate(angles_px):
                 Cinlst.append(Cinv[int(a[0])][int(a[1])])
                 mlst.append(m[int(a[0])][int(a[1])])
