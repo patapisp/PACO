@@ -7,6 +7,7 @@ accuracy.
 from .. import core
 from paco.util.util import *
 from .paco import PACO
+from multiprocessing import Process
 import matplotlib.pyplot as plt
 import sys
 
@@ -154,15 +155,16 @@ class FastPACO(PACO):
             Cinlst = []
             mlst = []
             hlst = []
-            for l,a in enumerate(angles_px):
-                Cinlst.append(Cinv[int(a[0])][int(a[1])])
-                mlst.append(m[int(a[0])][int(a[1])])
-                hlst.append(h[int(a[0])][int(a[1])])
-                patch[l] = self.get_patch(a, k)
+            for l,ang in enumerate(angles_px):
+                Cinlst.append(Cinv[int(ang[0])][int(ang[1])])
+                mlst.append(m[int(ang[0])][int(ang[1])])
+                hlst.append(h[int(ang[0])][int(ang[1])])
+                patch[l] = self.get_patch(ang, k)
             Cinlst = np.array(Cinlst)
             mlst   = np.array(mlst)
             hlst   = np.array(hlst)
 
+            print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
             a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
             b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)
