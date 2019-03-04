@@ -101,33 +101,11 @@ class FullPACO(PACO):
                 patch[l] = self.get_patch(ang, k) # Get the column of patches at this point
                 m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
                 # Calculate the covariance matrix
-
-                # Lots of plots for reference, will delete later
-                #mfig,mfax = plt.subplots(ncols = 2,figsize = (12,8))
-                #mfax = mfax.flatten()
-                #mimg = mfax[0].imshow(m[l])
-                #mimg1 = mfax[1].imshow(patch[l][l])
-                #mfig.colorbar(mimg,ax = mfax[0])
-                #mfig.colorbar(mimg1,ax = mfax[1])
-                #mfig.suptitle("Patch and mean plots")
                 S = self.sample_covariance(patch[l], m[l], T)
                 rho = self.shrinkage_factor(S, T)
-                #fig,ax = plt.subplots(nrows=2,ncols=2,figsize=(12,8))
-                #fig.suptitle("Covariance Plots l = " + str(l) + ", rho= " + str(float(rho)))
-                #ax = ax.flatten()
-                #im = ax[0].imshow(S)
-
                 F = self.diag_sample_covariance(S)
                 C = self.covariance(rho, S, F)
                 Cinv[l] = np.linalg.inv(C)
-                #fig.colorbar(im,ax = ax[0])
-                #im0 = ax[1].imshow(F)
-                #fig.colorbar(im0,ax = ax[1])
-                #im1 = ax[2].imshow(C)
-                #fig.colorbar(im1,ax = ax[2])
-                #im2 = ax[3].imshow(Cinv[l])
-                #fig.colorbar(im2,ax = ax[3])
-                #print(np.min(Cinv[l]))
                 if scale!=1:
                     h[l] = resizeImage(h_template,scale)
                 else:
