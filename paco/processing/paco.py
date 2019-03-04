@@ -4,7 +4,7 @@ This file will implement ALGORITHM 1 from the PACO paper
 import paco.core.ReadInFitsFile
 import matplotlib.pyplot as plt
 from paco.util.util import *
-
+import sys
 class PACO:
     def __init__(self,
                  patch_size = 49,
@@ -13,6 +13,7 @@ class PACO:
         self.FitsInput = None
         self.im_stack = []
         self.k = patch_size # defaults to paper value
+        self.T = -1
         return
 
     """
@@ -23,10 +24,17 @@ class PACO:
 
     def set_image_sequence(self,imgs):
         self.im_stack = imgs
+        self.T = len(imgs)
 
     def get_image_sequence(self):
         return self.im_stack
 
+    def rescale_image_sequence(self,scale):
+        new_stack = []
+        for i,img in enumerate(self.im_stack):
+            new_stack.append(resizeImage(img,scale))
+        self.im_stack =  np.array(new_stack)
+    
     def set_angles(self,angles = []):
         if len(angles) == 0:
             #do stuff
@@ -99,7 +107,11 @@ class PACO:
         S: Sample covariance matrix
         F: Diagonal of sample covariance matrix
         """
-        return (1-rho)*S + rho*F
+        C = (1.0-rho)*S + rho*F
+        #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
+        #im1 = ax.imshow(C)
+        #fig.colorbar(im1,ax = ax)
+        return C
     
     def sample_covariance(self,r, m, T):
         """
@@ -110,7 +122,10 @@ class PACO:
         m: mean of all background patches at position θk
         T: number of temporal frames
         """
-        S =  (1/T)*np.sum([np.outer((p-m).flatten(),(p-m).flatten().T) for p in r], axis=0)
+        #print(m.shape,r.shape)
+        #S =  (1.0/T)*np.sum([np.outer((p-m).ravel(),(p-m).ravel().T) for p in r], axis=0)
+        mv = m.flatten()
+        S = (1.0/T)*np.sum([np.cov(np.stack((p.ravel(),mv)), rowvar = False, bias = False) for p in r],axis = 0)
         return S
     
     def diag_sample_covariance(self,S):
@@ -130,20 +145,28 @@ class PACO:
         S: Sample covariance matrix
         T: Number of temporal frames
         """
-        top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2*np.sum(np.array([d**2 for d in np.diag(S)])))
-        bot = ((T+1)*(np.trace(np.dot(S,S))-np.sum(np.array([d**2 for d in np.diag(S)]))))
+        top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2.0*np.sum(np.array([d**2.0 for d in np.diag(S)])))
+        bot = ((T+1.0)*(np.trace(np.dot(S,S))-np.sum(np.array([d**2.0 for d in np.diag(S)]))))
         return top/bot
 
     def al(self,hfl, Cfl_inv):
         """
         a_l
         """
-        #hflT = np.zeros(hfl.shape)
-        #for j,h in enumerate(hfl):
-        #    hflT[j] = h.T
-        hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+      
+
+        #ht = np.array([h.T for h in hfl])
+        #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
+        #ax = ax.flatten()
+        #im1 = ax[0].imshow(hfl[0])
+        #ax[1].imshow(ht[0])
+        #im2 =ax.imshow(Cfl_inv[0])
+        #fig.colorbar(im2,ax = ax)
+        #ht = np.reshape(ht,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        #hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
         #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
-        a = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], hfl[i])) for i in range(len(hfl))])
+        a = np.array([np.dot(hfl[i].ravel(), np.dot(Cfl_inv[i], hfl[i].ravel()).T) for i in range(len(hfl))])
+        #print(a)
         return a
         
     
@@ -152,22 +175,26 @@ class PACO:
         b_l
         """
         #print("Calculating b")
-        #fig,ax = plt.subplots(nrows=2,ncols=3,figsize=(12,8))
+        #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
         #ax = ax.flatten()
         #ax[0].imshow(hfl[0])
         #ax[1].imshow(hfl[4])
         #ax[2].imshow(r_fl[1][1])
         #ax[3].imshow(r_fl[3][3])
         #ax[4].imshow(m_fl[0])
-        #ax[5].imshow(Cfl_inv[0])
+        #im1 = ax.imshow(Cfl_inv[4])
+        #fig.colorbar(im1,ax = ax)
         #hflT = np.zeros(hfl.shape)
         #for j,h in enumerate(hfl):
         #    hflT[j] = h.T
-        hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        #ht = np.array([h.T for h in hfl])
+        #ht = np.reshape(ht,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
+        #hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
         #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
-        r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
-        m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
-        b = np.array([np.dot(hfl[i].T, np.dot(Cfl_inv[i], (r_fl[i][i]-m_fl[i]))) for i in range(len(hfl))])
+        #r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
+        #m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
+        b = np.array([np.dot(np.dot(Cfl_inv[i], hfl[i].ravel()).T,(r_fl[i][i]-m_fl[i]).ravel()) for i in range(len(hfl))])
+        #print(b)
         return b
 
 

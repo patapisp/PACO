@@ -14,4 +14,5 @@ def plot_patches(patch, vmax=5):
     #ax = ax[:dim+1]
     for i in range(dim):
         ax[i].imshow(patch[i], vmax=vmax)
-    return   
+    return
+

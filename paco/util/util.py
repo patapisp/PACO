@@ -1,5 +1,5 @@
 """
-This file will contain basic utility functions
+This module contains basic utility functions
 
 - Rotations
 - Coordinate transformations
@@ -11,11 +11,30 @@ import cv2
 
 
 def rotateImage(image, angle):
-    
     image_center = tuple(np.array(image.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_NEAREST)
     return result
+
+def GetRotatedPixels(x,y,p0,angles):
+    # Current pixel
+    phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
+    # Convert to polar coordinates
+    rphi0 = cart_to_pol(phi0)
+    angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
+    
+    # Rotate the polar coordinates by each frame angle
+    angles_ind = [[rphi0[0],phi] for phi in angles_rad]
+    angles_pol = np.array(list(zip(*angles_ind)))
+    
+    # Convert from polar to cartesian and pixel coordinates
+    angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+int(x.shape[0]/2)
+    angles_px = angles_px.T
+    angles_px = np.fliplr(angles_px)
+    return angles_px
+
+def resizeImage(image, scaleFactor):
+    return cv2.resize(image,(0,0), fx = scaleFactor, fy = scaleFactor, interpolation = cv2.INTER_NEAREST)
 
 def gaussian2d(x,y,A, sigma):
     return A*np.exp(-(x**2+y**2)/(2*sigma**2))
