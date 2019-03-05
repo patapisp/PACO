@@ -143,7 +143,7 @@ class FastPACO(PACO):
                 print(str(i/100) + "%")
 
             # Get Angles
-            angles_px = GetRotatedPixels(x,y,p0,angles)
+            angles_px = getRotatedPixels(x,y,p0,angles)
 
             # Ensure within image bounds
             if(int(np.max(angles_px.flatten()))>=N or int(np.min(angles_px.flatten()))<0):
@@ -164,7 +164,7 @@ class FastPACO(PACO):
             mlst   = np.array(mlst)
             hlst   = np.array(hlst)
 
-            print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
+            #print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
             a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
             b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)

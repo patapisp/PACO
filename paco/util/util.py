@@ -16,7 +16,7 @@ def rotateImage(image, angle):
     result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_NEAREST)
     return result
 
-def GetRotatedPixels(x,y,p0,angles):
+def getRotatedPixels(x,y,p0,angles):
     # Current pixel
     phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
     # Convert to polar coordinates
@@ -42,7 +42,7 @@ def gaussian2d(x,y,A, sigma):
 def gaussian2d_model(n,sigma):
     dim = int(n/2)
     x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-    return np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
+    return 1/(2.0*np.pi*sigma**2) * np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
 
 def cart_to_pol(coords):
     """
