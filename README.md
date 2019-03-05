@@ -14,16 +14,20 @@ Currently, the Example and Data_from_gabriele notebooks provide the best overvie
 To use PACO, import one of the the processing modules (Fast or Full PACO are currently available). Fast PACO is recommended, as the loss of accuracy in the SNR is small, while the computation time is much, much lower.
 
 Create an instance of the class, specifying the patch size:
+
 ```
 import paco.processing.fastpaco as fastPACO
 fp = fastPACO.fastPACO(patch_size = 5)
 ```
 
 Set the stack of frames to be processed:
+
 ```fp.set_image_sequence(image_sequence)```
 
 Supplying the list of rotation angles between frames, and the pixel scaling, run PACO:
+
 ```a,b = fp.PACO(angles = angle_list, scale = scale)```
+
 This returns 2D maps for a and b, the the inverse variance and flux estimate respectively. The signal to noise can be computed as b/sqrt(a).
 
 ## Directory Structure
