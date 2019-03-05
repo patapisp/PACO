@@ -55,7 +55,6 @@ def psftemplate_model(n, params):
     psf_template = params["psf_template"]
     print("PSF template shape", np.shape(psf_template))
     dim = int(n)
-    print("dim", dim)
     m = np.shape(psf_template)[0]
     if m != dim:
         raise ValueError("PSF template dimension not equal patch size")
