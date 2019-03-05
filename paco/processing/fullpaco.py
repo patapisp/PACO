@@ -93,7 +93,7 @@ class FullPACO(PACO):
                 print(str(i/100) + "%")
                 
             # Get list of pixels for each rotation angle
-            angles_px = GetRotatedPixels(x,y,p0,angles)
+            angles_px = getRotatedPixels(x,y,p0,angles)
             
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
