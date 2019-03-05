@@ -39,10 +39,32 @@ def resizeImage(image, scaleFactor):
 def gaussian2d(x,y,A, sigma):
     return A*np.exp(-(x**2+y**2)/(2*sigma**2))
 
-def gaussian2d_model(n,sigma):
+def gaussian2d_model(n,params):
+    sigma = params["sigma"]
     dim = int(n/2)
     x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-    return np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
+    return np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))  
+
+def psftemplate_model(n, params):
+    """
+    Model using a psf template directly from the data. 
+    Template should be normalized such that the sum equals 1.
+    
+    If model needs rescaling it is done here
+    """
+    psf_template = params["psf_template"]
+    print("PSF template shape", np.shape(psf_template))
+    dim = int(n)
+    print("dim", dim)
+    m = np.shape(psf_template)[0]
+    if m != dim:
+        raise ValueError("PSF template dimension not equal patch size")
+        
+    if np.sum(psf_template) != 1:
+        print("Normalizing PSF template to sum = 1")
+        psf_template = psf_template/np.sum(psf_template)
+        
+    return psf_template
 
 def cart_to_pol(coords):
     """

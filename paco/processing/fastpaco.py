@@ -26,7 +26,7 @@ class FastPACO(PACO):
     """
     Algorithm Functions
     """    
-    def PACO(self,angles, scale = 1, model_name=gaussian2d_model):
+    def PACO(self,angles, params,scale = 1, model_name=gaussian2d_model):
         """
         PACO
         This function wraps the actual PACO algorithm, setting up the pixel coordinates 
@@ -42,14 +42,14 @@ class FastPACO(PACO):
                           np.arange(0,int(scale * self.im_stack.shape[2])))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
-        a,b = self.PACO_calc(np.array(phi0s),angles,scale, model_name)
+        a,b = self.PACO_calc(np.array(phi0s),angles, params,scale, model_name)
         # Reshape into a 2D image, with the same dimensions as the input images
         a = np.reshape(a,(self.im_stack.shape[1],self.im_stack.shape[2]))
         b = np.reshape(b,(self.im_stack.shape[1],self.im_stack.shape[2]))
         return a,b
 
 
-    def compute_statistics(self, phi0s, scale = 1, model_name=gaussian2d_model):
+    def compute_statistics(self, phi0s, params, scale = 1, model_name=gaussian2d_model):
         """
         compute_statistics
         
@@ -73,7 +73,7 @@ class FastPACO(PACO):
         patch = np.zeros((T,2*k,2*k)) # 2d selection of pixels around a given point
         m     = np.zeros((N,N,2*k,2*k)) # the mean of a temporal column of patches at each pixel
         Cinv  = np.zeros((N,N,4*k*k,4*k*k)) # the inverse covariance matrix at each point
-        h_template = self.model_function(2*k,model_name,sigma=2)
+        h_template = self.model_function(2*k,model_name, params)
         h = np.zeros((N,N,2*k,2*k)) # The off axis PSF at each point
         
         # Loop over all pixels
@@ -100,7 +100,7 @@ class FastPACO(PACO):
                 h[p0[0]][p0[1]] = h_template
         return Cinv,m,h
 
-    def PACO_calc(self, phi0s, angles, scale = 1, model_name=gaussian2d_model):
+    def PACO_calc(self, phi0s, angles,  params,  scale = 1, model_name=gaussian2d_model):
         """
         PACO_calc
         
@@ -129,11 +129,11 @@ class FastPACO(PACO):
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
         patch = np.zeros((T,T,2*k,2*k))#a patch is a small, 2d selection of pixels around a given point
-        h_template = self.model_function(4*k,model_name,sigma=5)
+        h_template = self.model_function(2*k,model_name,  params)
         h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point 
         # Set up coordinates so 0 is at the center of the image                   
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-        Cinv,m,h = self.compute_statistics(phi0s, scale = 1, model_name=gaussian2d_model)
+        Cinv,m,h = self.compute_statistics(phi0s,  params, scale = 1, model_name=model_name)
         
         print("Running PACO...")
         # Loop over all pixels
@@ -164,7 +164,7 @@ class FastPACO(PACO):
             mlst   = np.array(mlst)
             hlst   = np.array(hlst)
 
-            print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
+            #print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
             a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
             b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)

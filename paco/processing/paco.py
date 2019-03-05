@@ -88,7 +88,7 @@ class PACO:
     """
     Math Functions
     """
-    def model_function(self,n, model, **kwargs):
+    def model_function(self,n, model, params):
         """
         h_θ
 
@@ -96,7 +96,12 @@ class PACO:
         model: numpy statistical model (need to import numpy module for this)
         **kwargs: additional arguments for model
         """
-        return model(n, **kwargs)
+        if model.__name__ == "psftemplate_model":
+            try:
+                return model(n, params)
+            except ValueError:
+                print("Fix template size")            
+        return model(n, params)
 
     def covariance(self,rho, S, F):
         """
