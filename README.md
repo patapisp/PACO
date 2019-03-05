@@ -6,6 +6,7 @@ This package implements the algorithms developed by [Flasseur et. al 2018 [1]](h
 Polychronis Patapis, _ETH Zurich_
 
 Evert Nasedkin, _ETH Zurich_
+
 email: evertn@student.ethz.ch
 
 ## Usage
