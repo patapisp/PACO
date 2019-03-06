@@ -11,20 +11,21 @@ import sys
 
 class FullPACO(PACO):
     def __init__(self,                 
-                 patch_size = 5,
+                 patch_size = 49,
                  file_name = None,
                  directory = None):
         self.filename = file_name
         self.directory = directory
         self.FitsInput = None
         self.im_stack = []
-        self.k = int(patch_size) # defaults to paper value
+        self.p_size = int(patch_size) # Number of pixels in a patch
+        self.psf_rad = int(np.ceil(np.sqrt(patch_size/np.pi))) # width of a patch
         return
     
     """
     Algorithm Functions
     """   
-    def PACO(self,angles, scale = 1, model_name=gaussian2d_model):
+    def PACO(self,angles, params, scale = 1, model_name=gaussian2d_model):
         """
         PACO
         This function wraps the actual PACO algorithm, setting up the pixel coordinates 
@@ -42,13 +43,13 @@ class FullPACO(PACO):
                           np.arange(0,int(self.im_stack.shape[2])))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
-        a,b = self.PACO_calc(np.array(phi0s),angles,scale, model_name)
+        a,b = self.PACO_calc(np.array(phi0s),angles, params, scale, model_name)
         # Reshape into a 2D image, with the same dimensions as the input images
         a = np.reshape(a,(self.im_stack.shape[1],self.im_stack.shape[2]))
         b = np.reshape(b,(self.im_stack.shape[1],self.im_stack.shape[2]))
         return a,b
     
-    def PACO_calc(self, phi0s, angles, scale = 1, model_name=gaussian2d_model):
+    def PACO_calc(self, phi0s, angles, params, scale = 1, model_name=gaussian2d_model):
         """
         PACO_calc
         
@@ -71,16 +72,20 @@ class FullPACO(PACO):
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
         T = len(self.im_stack) # Number of temporal frames
-        k = int(np.ceil(scale * self.k ))            # Half-width of a patch, just for readability
+        k = int(2*np.ceil(scale * self.psf_rad ) + 2) # Width of a patch, just for readability
 
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,2*k,2*k)) # 2d selection of pixels around a given point
-        m     = np.zeros((T,2*k,2*k)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((T,4*k*k,4*k*k)) # the inverse covariance matrix at each point
-        h_template = self.model_function(2*k,model_name,sigma=3)
-        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point    
+        patch = np.zeros((T,T,self.p_size*scale**2)) # 2d selection of pixels around a given point
+        mask =  createCircularMask((k,k),radius = self.psf_rad*scale)
+        
+        m     = np.zeros((N,N,self.p_size*scale**2)) # the mean of a temporal column of patches at each pixel
+        Cinv  = np.zeros((N,N,self.p_size*scale**2,self.p_size*scale**2)) # the inverse covariance matrix at each point
+
+        h_template = self.model_function(k,model_name, params)
+        h_mask = createCircularMask(h_template.shape,radius = self.psf_rad*scale)
+        h = np.zeros((N,N,self.p_size*scale**2)) # The off axis PSF at each point
         print("Running PACO...")
         
         # Set up coordinates so 0 is at the center of the image                     
@@ -98,7 +103,7 @@ class FullPACO(PACO):
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
-                patch[l] = self.get_patch(ang, k) # Get the column of patches at this point
+                patch[l] = self.get_patch(ang, k, mask) # Get the column of patches at this point
                 m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
                 # Calculate the covariance matrix
                 S = self.sample_covariance(patch[l], m[l], T)
@@ -107,9 +112,9 @@ class FullPACO(PACO):
                 C = self.covariance(rho, S, F)
                 Cinv[l] = np.linalg.inv(C)
                 if scale!=1:
-                    h[l] = resizeImage(h_template,scale)
+                    h[l] = resizeImage(h_template,scale)[h_mask]
                 else:
-                    h[l] = h_template
+                    h[l] = h_template[h_mask]
 
             # Calculate a and b, matrices
             a[i] = np.sum(self.al(h, Cinv),axis=0)

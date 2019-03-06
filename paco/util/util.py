@@ -33,6 +33,25 @@ def getRotatedPixels(x,y,p0,angles):
     angles_px = np.fliplr(angles_px)
     return angles_px
 
+def createCircularMask(shape, radius=4, center=None):
+        """
+        Returns a 2D boolean mask given some radius and location
+        :w: width, number of x pixels
+        :h: height, number of y pixels
+        :center: [x,y] pair of pixel indices denoting the center of the mask
+        :radius: radius of mask
+        """
+        w = shape[0]
+        h = shape[1]
+        if center is None: 
+            center = [int(w/2), int(h/2)]
+        if radius is None:
+            radius = min(center[0], center[1], w-center[0], h-center[1])
+        X, Y = np.ogrid[:w, :h]
+        dist2 = (X - center[0])**2 + (Y-center[1])**2
+        mask = dist2 <= radius**2
+        return mask
+    
 def resizeImage(image, scaleFactor):
     return cv2.resize(image,(0,0), fx = scaleFactor, fy = scaleFactor, interpolation = cv2.INTER_NEAREST)
 
@@ -56,14 +75,14 @@ def psftemplate_model(n, params):
     print("PSF template shape", np.shape(psf_template))
     dim = int(n)
     m = np.shape(psf_template)[0]
-    if m != dim:
-        raise ValueError("PSF template dimension not equal patch size")
+    #if m != dim:
+    #    raise ValueError("PSF template dimension not equal patch size")
         
     if np.sum(psf_template) != 1:
         print("Normalizing PSF template to sum = 1")
-        psf_template = psf_template/np.sum(psf_template)
-        
+        psf_template = psf_template/np.sum(psf_template)        
     return psf_template
+
 def cart_to_pol(coords):
     """
     Takes cartesian (2D) coordinates and transforms them into polar.

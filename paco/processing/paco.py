@@ -5,14 +5,16 @@ import paco.core.ReadInFitsFile
 import matplotlib.pyplot as plt
 from paco.util.util import *
 import sys
+
 class PACO:
     def __init__(self,
                  patch_size = 49,
                  file_name = None,
                  directory = None):
-        self.FitsInput = None
+        self.FITS_Input = None
         self.im_stack = []
-        self.k = patch_size # defaults to paper value
+        self.p_size = patch_size # Number of pixels in a patch
+        self.psf_rad = np.ceil(np.sqrt(patch_size/np.pi)) # width of a patch
         self.T = -1
         return
 
@@ -52,25 +54,8 @@ class PACO:
         self.FitsInput = ReadInFitsFile.ReadInFitsFile(file_name,directory)
         self.FitsInput.open_one_fits(file_name)
         self.im_stack = FitsInput.images
-        
-    def create_circular_mask(self,w, h,radius=None, center=None):
-        """
-        Returns a 2D boolean mask given some radius and location
-        :w: width, number of x pixels
-        :h: height, number of y pixels
-        :center: [x,y] pair of pixel indices denoting the center of the mask
-        :radius: radius of mask
-        """
-        if center is None: 
-            center = [int(w/2), int(h/2)]
-        if radius is None:
-            radius = min(center[0], center[1], w-center[0], h-center[1])
-        X, Y = np.ogrid[:w, :h]
-        dist2 = (X - center[0])**2 + (Y-center[1])**2
-        mask = dist2 <= radius**2
-        return mask
 
-    def get_patch(self,px, k):
+    def get_patch(self,px, width, mask = None):
         """
         gets patch at given pixel px with size k for the current img sequence
         
@@ -78,11 +63,15 @@ class PACO:
         A circular mask will be created separately to select
         which pixels to examine within a patch.
         """
+        k = int(width/2)
         nx, ny = np.shape(self.im_stack[0])[:2]
         if px[0]+k > nx or px[0]-k < 0 or px[1]+k > ny or px[1]-k < 0:
             #print("pixel out of range")
             return None
-        patch = np.array([self.im_stack[i][int(px[0])-k:int(px[0])+k, int(px[1])-k:int(px[1])+k] for i in range(len(self.im_stack))])
+        if mask is not None:
+            patch = np.array([self.im_stack[i][int(px[0])-k:int(px[0])+k, int(px[1])-k:int(px[1])+k][mask] for i in range(len(self.im_stack))])
+        else:
+            patch = np.array([self.im_stack[i][int(px[0])-k:int(px[0])+k, int(px[1])-k:int(px[1])+k] for i in range(len(self.im_stack))])
         return patch
 
     """
@@ -129,8 +118,7 @@ class PACO:
         """
         #print(m.shape,r.shape)
         #S =  (1.0/T)*np.sum([np.outer((p-m).ravel(),(p-m).ravel().T) for p in r], axis=0)
-        mv = m.flatten()
-        S = (1.0/T)*np.sum([np.cov(np.stack((p.ravel(),mv)), rowvar = False, bias = False) for p in r],axis = 0)
+        S = (1.0/T)*np.sum([np.cov(np.stack((p, m)), rowvar = False, bias = False) for p in r],axis = 0)
         return S
     
     def diag_sample_covariance(self,S):
@@ -170,7 +158,7 @@ class PACO:
         #ht = np.reshape(ht,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
         #hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
         #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
-        a = np.array([np.dot(hfl[i].ravel(), np.dot(Cfl_inv[i], hfl[i].ravel()).T) for i in range(len(hfl))])
+        a = np.array([np.dot(hfl[i], np.dot(Cfl_inv[i], hfl[i]).T) for i in range(len(hfl))])
         #print(a)
         return a
         
@@ -198,7 +186,7 @@ class PACO:
         #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
         #r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
         #m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
-        b = np.array([np.dot(np.dot(Cfl_inv[i], hfl[i].ravel()).T,(r_fl[i][i]-m_fl[i]).ravel()) for i in range(len(hfl))])
+        b = np.array([np.dot(np.dot(Cfl_inv[i], hfl[i]).T,(r_fl[i][i]-m_fl[i])) for i in range(len(hfl))])
         #print(b)
         return b
 

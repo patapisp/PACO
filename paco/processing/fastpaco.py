@@ -13,20 +13,21 @@ import sys
 
 class FastPACO(PACO):
     def __init__(self,                 
-                 patch_size = 5,
+                 patch_size = 49,
                  file_name = None,
                  directory = None):
         self.filename = file_name
         self.directory = directory
         self.FitsInput = None
         self.im_stack = []
-        self.k = int(patch_size) # defaults to paper value
+        self.p_size = int(patch_size) # Number of pixels in a patch
+        self.psf_rad = int(np.ceil(np.sqrt(patch_size/np.pi))) # width of a patch
         return
 
     """
     Algorithm Functions
     """    
-    def PACO(self,angles, params,scale = 1, model_name=gaussian2d_model):
+    def PACO(self,angles, params, scale = 1, model_name=gaussian2d_model):
         """
         PACO
         This function wraps the actual PACO algorithm, setting up the pixel coordinates 
@@ -42,14 +43,14 @@ class FastPACO(PACO):
                           np.arange(0,int(scale * self.im_stack.shape[2])))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
-        a,b = self.PACO_calc(np.array(phi0s),angles, params,scale, model_name)
+        a,b = self.PACO_calc(np.array(phi0s),angles, params, scale, model_name)
         # Reshape into a 2D image, with the same dimensions as the input images
         a = np.reshape(a,(self.im_stack.shape[1],self.im_stack.shape[2]))
         b = np.reshape(b,(self.im_stack.shape[1],self.im_stack.shape[2]))
         return a,b
 
 
-    def compute_statistics(self, phi0s, params, scale = 1, model_name=gaussian2d_model):
+    def compute_statistics(self, phi0s, params, scale, model_name):
         """
         compute_statistics
         
@@ -65,28 +66,34 @@ class FastPACO(PACO):
         npx = len(phi0s)           # Number of pixels in an image      
         dim = int(N/2)
         T = len(self.im_stack)            # Number of temporal frames
-        k = int(np.ceil(scale * self.k )) # Half-width of a patch, just for readability
+        k = int(2*np.ceil(scale * self.psf_rad ) + 2) # Width of a patch, just for readability
         
         # Create arrays needed for storage
+        # PSF Template
+        h_template = self.model_function(k,model_name, params)
+        h_mask = createCircularMask(h_template.shape,radius = self.psf_rad*scale)
+        h = np.zeros((N,N,self.p_size*scale**2)) # The off axis PSF at each point
+
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,2*k,2*k)) # 2d selection of pixels around a given point
-        m     = np.zeros((N,N,2*k,2*k)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((N,N,4*k*k,4*k*k)) # the inverse covariance matrix at each point
-        h_template = self.model_function(2*k,model_name, params)
-        h = np.zeros((N,N,2*k,2*k)) # The off axis PSF at each point
-        
+        patch = np.zeros((T,self.p_size*scale**2)) # 2d selection of pixels around a given point
+        mask = createCircularMask((k,k),radius = self.psf_rad*scale)
+        m     = np.zeros((N,N,self.p_size*scale**2)) # the mean of a temporal column of patches at each pixel
+        Cinv  = np.zeros((N,N,self.p_size,self.p_size*scale**2)) # the inverse covariance matrix at each point
+
+
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
             if(i%1000 == 0):
                 print(str(i/100) + "%")
             # Current pixel
-            patch = self.get_patch(p0, k) # Get the column of patches at this point
+            patch = self.get_patch(p0, k, mask) # Get the column of patches at this point
             if patch is None:
                 continue
-            m[p0[0]][p0[1]] = np.mean(patch, axis=0) # Calculate the mean of the column
-
+            
+            m[p0[0]][p0[1]] = np.mean(patch,axis = 0) # Calculate the mean of the column
+               
             # Calculate the covariance matrix
             S = self.sample_covariance(patch, m[p0[0]][p0[1]], T)
             rho = self.shrinkage_factor(S, T) 
@@ -95,9 +102,9 @@ class FastPACO(PACO):
             
             Cinv[p0[0]][p0[1]] = np.linalg.inv(C)
             if scale!=1:
-                h[p0[0]][p0[1]] = resizeImage(h_template,scale)
+                h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
-                h[p0[0]][p0[1]] = h_template
+                h[p0[0]][p0[1]] = h_template[h_mask]
         return Cinv,m,h
 
     def PACO_calc(self, phi0s, angles,  params,  scale = 1, model_name=gaussian2d_model):
@@ -123,18 +130,16 @@ class FastPACO(PACO):
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
         T = len(self.im_stack) # Number of temporal frames
-        k = int(np.ceil(scale * self.k ))            # Half-width of a patch, just for readability
-
+        k = int(2*np.ceil(scale * self.psf_rad ) + 2) # Width of a patch, just for readability
+        
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,2*k,2*k))#a patch is a small, 2d selection of pixels around a given point
-        h_template = self.model_function(2*k,model_name,  params)
-        h = np.zeros((T,2*k,2*k)) # The off axis PSF at each point 
-        # Set up coordinates so 0 is at the center of the image                   
-        x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-        Cinv,m,h = self.compute_statistics(phi0s,  params, scale = 1, model_name=model_name)
+        patch = np.zeros((T,T,self.p_size)) # 2d selection of pixels around a given point
+        mask =  createCircularMask((k,k),radius = self.psf_rad)
         
+        Cinv,m,h = self.compute_statistics(phi0s, params, scale = scale, model_name = model_name)
+        x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))    
         print("Running PACO...")
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
@@ -159,10 +164,10 @@ class FastPACO(PACO):
                 Cinlst.append(Cinv[int(ang[0])][int(ang[1])])
                 mlst.append(m[int(ang[0])][int(ang[1])])
                 hlst.append(h[int(ang[0])][int(ang[1])])
-                patch[l] = self.get_patch(ang, k)
-            Cinlst = np.array(Cinlst)
-            mlst   = np.array(mlst)
-            hlst   = np.array(hlst)
+                patch[l] = self.get_patch(ang, k, mask)
+            Cinv_arr = np.array(Cinlst)
+            m_arr   = np.array(mlst)
+            hl   = np.array(hlst)
 
             #print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
