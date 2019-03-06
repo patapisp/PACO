@@ -62,7 +62,7 @@ def gaussian2d_model(n,params):
     sigma = params["sigma"]
     dim = int(n/2)
     x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
-    return 1/(2.0*np.pi*sigma**2) * np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
+    return 1.0/(2.0*np.pi*sigma**2) * np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
 
 def psftemplate_model(n, params):
     """
