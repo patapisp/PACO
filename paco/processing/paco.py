@@ -145,49 +145,20 @@ class PACO:
     def al(self,hfl, Cfl_inv):
         """
         a_l
-        """
-      
 
-        #ht = np.array([h.T for h in hfl])
-        #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
-        #ax = ax.flatten()
-        #im1 = ax[0].imshow(hfl[0])
-        #ax[1].imshow(ht[0])
-        #im2 =ax.imshow(Cfl_inv[0])
-        #fig.colorbar(im2,ax = ax)
-        #ht = np.reshape(ht,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
-        #hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
-        #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
-        a = np.array([np.dot(hfl[i], np.dot(Cfl_inv[i], hfl[i]).T) for i in range(len(hfl))])
-        #print(a)
+        The sum of a_l is the inverse of the variance of the background at the given pixel
+        """
+        a = np.sum(np.array([np.dot(hfl[i], np.dot(Cfl_inv[i], hfl[i]).T) for i in range(len(hfl))]),axis = 0)
         return a
         
     
     def bl(self,hfl, Cfl_inv, r_fl, m_fl):
         """
         b_l
+
+        The sum of b_l is the flux estimate at the given pixel. 
         """
-        #print("Calculating b")
-        #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
-        #ax = ax.flatten()
-        #ax[0].imshow(hfl[0])
-        #ax[1].imshow(hfl[4])
-        #ax[2].imshow(r_fl[1][1])
-        #ax[3].imshow(r_fl[3][3])
-        #ax[4].imshow(m_fl[0])
-        #im1 = ax.imshow(Cfl_inv[4])
-        #fig.colorbar(im1,ax = ax)
-        #hflT = np.zeros(hfl.shape)
-        #for j,h in enumerate(hfl):
-        #    hflT[j] = h.T
-        #ht = np.array([h.T for h in hfl])
-        #ht = np.reshape(ht,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
-        #hfl = np.reshape(hfl,(hfl.shape[0],hfl.shape[1]*hfl.shape[2]))
-        #hflT = np.reshape(hflT,(hflT.shape[0],hflT.shape[1]*hflT.shape[2]))
-        #r_fl = np.reshape(r_fl,(r_fl.shape[0],r_fl.shape[1],r_fl.shape[2]*r_fl.shape[3]))
-        #m_fl = np.reshape(m_fl,(m_fl.shape[0],m_fl.shape[1]*m_fl.shape[2]))
-        b = np.array([np.dot(np.dot(Cfl_inv[i], hfl[i]).T,(r_fl[i][i]-m_fl[i])) for i in range(len(hfl))])
-        #print(b)
+        b = np.sum(np.array([np.dot(np.dot(Cfl_inv[i], hfl[i]).T,(r_fl[i][i]-m_fl[i])) for i in range(len(hfl))]),axis = 0)
         return b
 
 

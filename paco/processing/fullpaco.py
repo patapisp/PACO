@@ -117,8 +117,8 @@ class FullPACO(PACO):
                     h[l] = h_template[h_mask]
 
             # Calculate a and b, matrices
-            a[i] = np.sum(self.al(h, Cinv),axis=0)
-            b[i] = max(np.sum(self.bl(h, Cinv, patch, m), axis=0),0.0)
+            a[i] = self.al(h, Cinv)
+            b[i] = max(self.bl(h, Cinv, patch, m),0.0)
         print("Done")
         return a,b
   

@@ -171,8 +171,8 @@ class FastPACO(PACO):
 
             #print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
-            a[i] = np.sum(self.al(hlst, Cinlst), axis=0)
-            b[i] = max(np.sum(self.bl(hlst, Cinlst, patch, mlst), axis=0),0.0)
+            a[i] = self.al(hlst, Cinlst)
+            b[i] = max(self.bl(hlst, Cinlst, patch, mlst),0.0)
         print("Done")
         return a,b
   
