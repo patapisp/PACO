@@ -14,11 +14,11 @@ Currently, the Example and Data_from_gabriele notebooks provide the best overvie
 
 To use PACO, import one of the the processing modules (Fast or Full PACO are currently available). Fast PACO is recommended, as the loss of accuracy in the SNR is small, while the computation time is much, much lower.
 
-Create an instance of the class, specifying the patch size:
+Create an instance of the class, specifying the patch size in the number of pixels in a circular patch (recommend 13, **49** or 113, which are 3,4, and 5 pixel radius circular patches respectively):
 
 ```
 import paco.processing.fastpaco as fastPACO
-fp = fastPACO.fastPACO(patch_size = 5)
+fp = fastPACO.fastPACO(patch_size = 49)
 ```
 
 Set the stack of frames to be processed:

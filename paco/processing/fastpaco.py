@@ -144,7 +144,7 @@ class FastPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
-            if(i%1000 == 0):
+            if(i%(npx/10) == 0):
                 print(str(i/100) + "%")
 
             # Get Angles
