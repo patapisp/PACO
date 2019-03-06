@@ -7,7 +7,7 @@ accuracy.
 from .. import core
 from paco.util.util import *
 from .paco import PACO
-from multiprocessing import Process
+from multiprocessing import Process,Pool
 import matplotlib.pyplot as plt
 import sys
 
@@ -82,31 +82,45 @@ class FastPACO(PACO):
         Cinv  = np.zeros((N,N,self.p_size,self.p_size*scale**2)) # the inverse covariance matrix at each point
 
 
+        # PARALLEL
+        # Generate tuples to pass as arguments
+        arglist = [(p0,k,mask,T) for p0 in phi0s]
+
+        # Create a pool
+        p = Pool(processes = N)
+        data = p.starmap(self.pixel_calc,arglist)
+        p.close()
+
+        # Fill in the arrays with the data
+        data = np.array(data)
+        m[data[:,0][0]][data[:,0][1]] = data[:,1]
+        Cinv[data[:,0][0]][data[:,0][1]] = data[:,2]
+
+        # Do h in serial so I don't have to pass too many arguments
+        for p0 in phi0s:
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
-        for i,p0 in enumerate(phi0s):
-            if(i%1000 == 0):
-                print(str(i/100) + "%")
-            # Current pixel
-            patch = self.get_patch(p0, k, mask) # Get the column of patches at this point
-            if patch is None:
-                continue
-            
-            m[p0[0]][p0[1]] = np.mean(patch,axis = 0) # Calculate the mean of the column
-               
-            # Calculate the covariance matrix
-            S = self.sample_covariance(patch, m[p0[0]][p0[1]], T)
-            rho = self.shrinkage_factor(S, T) 
-            F = self.diag_sample_covariance(S)
-            C = self.covariance(rho, S, F)
-            
-            Cinv[p0[0]][p0[1]] = np.linalg.inv(C)
             if scale!=1:
                 h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
                 h[p0[0]][p0[1]] = h_template[h_mask]
         return Cinv,m,h
 
+    def pixel_calc(self, p0, k, mask, T):
+        patch = self.get_patch(p0, k, mask) # Get the column of patches at this point
+        if patch is None:
+            return np.array([p0,None,None])
+            
+        m = np.mean(patch,axis = 0) # Calculate the mean of the column
+        
+        # Calculate the covariance matrix
+        S = self.sample_covariance(patch, m, T)
+        rho = self.shrinkage_factor(S, T) 
+        F = self.diag_sample_covariance(S)
+        C = self.covariance(rho, S, F)    
+        Cinv = np.linalg.inv(C)
+        return np.array([p0,m,Cinv])
+    
     def PACO_calc(self, phi0s, angles,  params,  scale = 1, model_name=gaussian2d_model):
         """
         PACO_calc
