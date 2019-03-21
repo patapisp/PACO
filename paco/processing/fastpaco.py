@@ -10,6 +10,8 @@ from .paco import PACO
 from multiprocessing import Process,Pool
 import matplotlib.pyplot as plt
 import sys
+import concurrent.futures as cf
+import time
 
 class FastPACO(PACO):
     def __init__(self,                 
@@ -81,42 +83,63 @@ class FastPACO(PACO):
         #mask = createCircularMask((k,k),radius = self.psf_rad*scale)
         m     = np.zeros((N,N,self.p_size*scale**2)) # the mean of a temporal column of patches at each pixel
         Cinv  = np.zeros((N,N,self.p_size,self.p_size*scale**2)) # the inverse covariance matrix at each point
-
-
-        # *** PARALLEL *** currently much slower than serial
-        # Generate tuples to pass as arguments
-        #arglist = [(p0,k,T) for p0 in phi0s]
-
-        # Create a pool
-        #p = Pool(processes = 8)
-        #data = p.starmap(self.pixel_calc,arglist)
-        #p.close()
-        
-        # Fill in the arrays with the data
-        #data = np.array(data)
-        #print(data.shape,data[:,0].shape,m.shape,data[:,1].shape)
-        #m[data[:,0][0]][data[:,0][1]] = data[:,1]
-        #Cinv[data[:,0][0]][data[:,0][1]] = data[:,2]
+        patches = []
 
         # *** SERIAL ***
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         # Do h in serial so I don't have to pass too many arguments
+        start = time.time()
         for p0 in phi0s:
             # Fill in the arrays with the data
-            data = self.pixel_calc(p0,k,T)
-            if data[0] is not None:
-                m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = data
+            #data = self.pixel_calc((p0,k,T))
+            #if data[0] is not None:
+            #    temp,m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = data
             if scale!=1:
                 h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
                 h[p0[0]][p0[1]] = h_template[h_mask]
+        end = time.time()
+        
+        arglist = [(self.get_patch(p0, k, self.mask),p0,k,T) for p0 in phi0s]
+        '''
+        # *** PARALLEL *** currently much slower than serial
+        #data = []
+        # with cf.ProcessPoolExecutor(4) as executor:
+        #    for args,out in zip(arglist,executor.map(self.pixel_calc,arglist,chunksize = int(npx/16))):
+        #        data.append(out)
+        #    print(len(data))
+
+        #data = np.array(data)
+        #print(data.shape)
+        '''
+        print("Serial elapsed",end-start)
+        start = time.time()
+        
+        # Create a pool
+        p = Pool(processes = 2)
+        data = p.map_async(self.pixel_calc, arglist, chunksize = int(npx/4))
+        p.close()
+        p.join()
+        data = np.array(data)
+        print(data)
+        end = time.time()
+        
+        print("Parallel elapsed",end-start)
+        # Fill in the arrays with the data
+        m[data[:,0][0]][data[:,0][1]] = data[:,1]
+        Cinv[data[:,0][0]][data[:,0][1]] = data[:,2]
+
+
         return Cinv,m,h
 
-    def pixel_calc(self, p0, k, T):
-        patch = self.get_patch(p0, k, self.mask) # Get the column of patches at this point
+    def pixel_calc(self, _args):
+        patch = _args[0]
+        p0 = _args[1]
+        k = _args[2]
+        T = _args[3]
         if patch is None:
-            return np.array([None,None])
+            return np.array([p0,None,None])
             
         m = np.mean(patch,axis = 0) # Calculate the mean of the column
         
@@ -126,7 +149,8 @@ class FastPACO(PACO):
         F = self.diag_sample_covariance(S)
         C = self.covariance(rho, S, F)    
         Cinv = np.linalg.inv(C)
-        return m,Cinv
+        print("here for px",p0)
+        return np.array([p0,m,Cinv])
     
     def PACO_calc(self, phi0s, angles,  params,  scale = 1, model_name=gaussian2d_model):
         """
