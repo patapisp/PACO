@@ -129,3 +129,95 @@ def grid_pol_to_cart(r, phi):
     y = r*np.sin(phi)
     return (x,y)
 
+
+
+shared_arr1 = 0
+shared_arr2 = 0
+## Single funcs for parallel processing
+def init_array(arr1,arr2):
+    global shared_arr1
+    shared_arr1 = arr1
+    global shared_arr2
+    shared_arr2 = arr2
+    
+def pixel_calc(_args):
+    patch = _args[0]
+    p0 = _args[1]
+    k = _args[2]
+    T = _args[3]
+    count = args[4]
+    if patch is None:
+        m = None,
+        Cinv = None
+        return
+    
+    m = np.mean(patch,axis = 0) # Calculate the mean of the column
+    nc = 0
+    print("here")
+    for i in range(count*m.shape,(count+1)*m.shape):
+        shared_arr1[i] = m[nc]
+        print(m[nc],shared_arr1[i])
+        nc += 1
+    nc = 0
+    # Calculate the covariance matrix
+    S = sample_covariance(patch, _args[4], T)
+    rho = shrinkage_factor(S, T) 
+    F = diag_sample_covariance(S)
+    C = covariance(rho, S, F)    
+    cinv = np.linalg.inv(C)
+    for i in range(count*cinv.shape,(count+1)*cinv.shape):
+        shared_arr2[i] = cinv[nc]
+        nc+=1
+    #print("here for px",p0)
+    #return np.array([p0,m,Cinv])
+
+
+def covariance(rho, S, F):
+    """
+    Ĉ
+    
+    Shrinkage covariance matrix
+    rho: shrinkage weight
+    S: Sample covariance matrix
+    F: Diagonal of sample covariance matrix
+    """
+    C = (1.0-rho)*S + rho*F
+    #fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,8))
+    #im1 = ax.imshow(C)
+    #fig.colorbar(im1,ax = ax)
+    return C
+
+def sample_covariance(r, m, T):
+    """
+    Ŝ
+    
+    Sample covariance matrix
+    r: observed intensity at position θk and time tl
+    m: mean of all background patches at position θk
+    T: number of temporal frames
+    """
+    #print(m.shape,r.shape)
+    #S =  (1.0/T)*np.sum([np.outer((p-m).ravel(),(p-m).ravel().T) for p in r], axis=0)
+    S = (1.0/T)*np.sum([np.cov(np.stack((p, m)), rowvar = False, bias = False) for p in r],axis = 0)
+    return S
+    
+def diag_sample_covariance(S):
+    """
+    F
+    
+    Diagonal elements of the sample covariance matrix
+    S: Sample covariance matrix
+    """
+    return np.diag(np.diag(S))
+
+def shrinkage_factor(S, T):
+    """
+    ρ
+
+    Shrinkage factor to regularize covariant matrix
+    S: Sample covariance matrix
+    T: Number of temporal frames
+    """
+    top = (np.trace(np.dot(S,S)) + np.trace(S)**2 - 2.0*np.sum(np.array([d**2.0 for d in np.diag(S)])))
+    bot = ((T+1.0)*(np.trace(np.dot(S,S))-np.sum(np.array([d**2.0 for d in np.diag(S)]))))
+    return top/bot

@@ -7,7 +7,9 @@ accuracy.
 from .. import core
 from paco.util.util import *
 from .paco import PACO
-from multiprocessing import Process,Pool
+from multiprocessing import Process,Pool,sharedctypes
+
+
 import matplotlib.pyplot as plt
 import sys
 import concurrent.futures as cf
@@ -79,78 +81,54 @@ class FastPACO(PACO):
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,self.p_size*scale**2)) # 2d selection of pixels around a given point
-        #mask = createCircularMask((k,k),radius = self.psf_rad*scale)
-        m     = np.zeros((N,N,self.p_size*scale**2)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((N,N,self.p_size,self.p_size*scale**2)) # the inverse covariance matrix at each point
         patches = []
+        patch = np.zeros((T,self.p_size*scale**2)) # 2d selection of pixels around a given point
 
+        # the mean of a temporal column of patches at each pixel
+        m     = np.zeros((N*N*self.p_size*scale**2)) 
+        m_C = np.ctypeslib.as_array(m)
+        #N*N*self.p_size*scale**2
+
+        # the inverse covariance matrix at each point
+        Cinv  = np.zeros((N*N*self.p_size*self.p_size*scale**2)) 
+        Cinv_C  = np.ctypeslib.as_array(Cinv)
+        #N*N*self.p_size*self.p_size*scale**2
+
+
+        
         # *** SERIAL ***
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         # Do h in serial so I don't have to pass too many arguments
-        start = time.time()
         for p0 in phi0s:
-            # Fill in the arrays with the data
-            #data = self.pixel_calc((p0,k,T))
-            #if data[0] is not None:
-            #    temp,m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = data
             if scale!=1:
                 h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
                 h[p0[0]][p0[1]] = h_template[h_mask]
-        end = time.time()
-        
-        arglist = [(self.get_patch(p0, k, self.mask),p0,k,T) for p0 in phi0s]
-        '''
-        # *** PARALLEL *** currently much slower than serial
-        #data = []
-        # with cf.ProcessPoolExecutor(4) as executor:
-        #    for args,out in zip(arglist,executor.map(self.pixel_calc,arglist,chunksize = int(npx/16))):
-        #        data.append(out)
-        #    print(len(data))
 
-        #data = np.array(data)
-        #print(data.shape)
-        '''
-        print("Serial elapsed",end-start)
-        start = time.time()
+        # *** Parallel Processing ***
+        start = time.time()     
+        arglist = [(self.get_patch(p0, k, self.mask),p0,k,T,count) for count,p0 in enumerate(phi0s)]
         
         # Create a pool
-        p = Pool(processes = 2)
-        data = p.map_async(self.pixel_calc, arglist, chunksize = int(npx/4))
+        print(m_C.shape)
+        shared_m = sharedctypes.RawArray('d', m_C)
+        shared_Cinv = sharedctypes.RawArray('d',Cinv_C)
+        
+        p = Pool(processes = 2,initializer = init_array,initargs = (shared_m,shared_Cinv))
+        data = p.map_async(pixel_calc, arglist, chunksize = int(npx/4))
         p.close()
         p.join()
-        data = np.array(data)
-        print(data)
+
+        print(shared_m)
+        print(m_C)
+        m = np.frombuffer(shared_m).reshape((N,N,self.p_size*scale**2))
+        print(m)
+        Cinv = np.frombuffer(shared_Cinv).reshape((N,N,self.p_size,self.p_size*scale**2))
         end = time.time()
         
         print("Parallel elapsed",end-start)
-        # Fill in the arrays with the data
-        m[data[:,0][0]][data[:,0][1]] = data[:,1]
-        Cinv[data[:,0][0]][data[:,0][1]] = data[:,2]
-
-
         return Cinv,m,h
-
-    def pixel_calc(self, _args):
-        patch = _args[0]
-        p0 = _args[1]
-        k = _args[2]
-        T = _args[3]
-        if patch is None:
-            return np.array([p0,None,None])
-            
-        m = np.mean(patch,axis = 0) # Calculate the mean of the column
-        
-        # Calculate the covariance matrix
-        S = self.sample_covariance(patch, m, T)
-        rho = self.shrinkage_factor(S, T) 
-        F = self.diag_sample_covariance(S)
-        C = self.covariance(rho, S, F)    
-        Cinv = np.linalg.inv(C)
-        print("here for px",p0)
-        return np.array([p0,m,Cinv])
     
     def PACO_calc(self, phi0s, angles,  params,  scale = 1, model_name=gaussian2d_model):
         """
@@ -220,4 +198,5 @@ class FastPACO(PACO):
             b[i] = max(self.bl(hlst, Cinlst, patch, mlst),0.0)
         print("Done")
         return a,b
-  
+
+        
