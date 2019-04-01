@@ -7,11 +7,11 @@ accuracy.
 from .. import core
 from paco.util.util import *
 from .paco import PACO
-from multiprocessing import Process,Pool,sharedctypes
-
+from multiprocessing import Process,Pool,sharedctypes,Lock,Array,Queue,Manager
+import ctypes
 
 import matplotlib.pyplot as plt
-import sys
+import sys,os
 import concurrent.futures as cf
 import time
 
@@ -100,31 +100,89 @@ class FastPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         # Do h in serial so I don't have to pass too many arguments
+        am = []
+        ac = []
+        start = time.time()
         for p0 in phi0s:
+            #apatch = self.get_patch(p0,k,self.mask)
+            #amean,acinv = pixel_calc(patch,T,self.p_size,)
+            #am.append(amean)
+            #ac.append(acinv)
             if scale!=1:
                 h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
                 h[p0[0]][p0[1]] = h_template[h_mask]
 
+        end = time.time()
+        print("Serial elapsed",end-start)
+
+
+        
         # *** Parallel Processing ***
-        start = time.time()     
-        arglist = [(self.get_patch(p0, k, self.mask),p0,k,T,count) for count,p0 in enumerate(phi0s)]
-        
+        start = time.time()
+
+
+        #print(arglist[0])
         # Create a pool
-        print(m_C.shape)
-        shared_m = sharedctypes.RawArray('d', m_C)
-        shared_Cinv = sharedctypes.RawArray('d',Cinv_C)
+        #shared_m = sharedctypes.RawArray('d', m_C)
+        #shared_m = sharedctypes.Array(ctypes.c_double,m_C,lock = False)
+        #shared_Cinv = sharedctypes.RawArray('d',Cinv_C)
+        #shared_Cinv = sharedctypes.Array(ctypes.c_double,Cinv_C,lock = False)
+        # pynpoint processing/limits.py
         
-        p = Pool(processes = 2,initializer = init_array,initargs = (shared_m,shared_Cinv))
-        data = p.map_async(pixel_calc, arglist, chunksize = int(npx/4))
+        #queue = Queue(100000000)
+        cpu = 2
+        nProcess = 4
+
+        #patches = [np.copy(np.array(self.get_patch(p0, k, self.mask))) for p0 in phi0s]
+        arglist = [(np.copy(np.array(self.get_patch(p0, k, self.mask))),T,self.p_size) for p0 in phi0s]
+        '''
+        jobs = []
+        result = []
+        for apatch in patches:
+            process = Process(target = pixel_calc,
+                              args = (apatch,
+                                      T,
+                                      self.p_size,
+                                      queue))
+            jobs.append(process)
+            
+        for count,job in enumerate(jobs):
+            job.start()
+            #print(job,count)
+            #print("started")
+            if (count+1)%cpu == 0:
+                for njob in jobs[(count+1-cpu):(count+1)]:
+                    njob.join(timeout = 0.5)
+            elif (count+1) == len(jobs) and (count+1)%cpu != 0:
+                for njob in jobs[count + 1 - (count + 1)%cpu:]:
+                    njob.join()
+
+
+        '''
+        p = Pool(processes = 8)
+        data = p.map(pixel_calc, arglist, chunksize = int(npx/16))
         p.close()
         p.join()
+        #for n in range(5000,5010):
+        #    print(data[n].shape)
 
-        print(shared_m)
-        print(m_C)
-        m = np.frombuffer(shared_m).reshape((N,N,self.p_size*scale**2))
-        print(m)
-        Cinv = np.frombuffer(shared_Cinv).reshape((N,N,self.p_size,self.p_size*scale**2))
+       '''
+        queue.put(None)
+        while True:
+            item = queue.get()
+
+            if item is None:
+                break
+            else:
+                result.append(item)
+
+        
+        '''
+        ms = np.array([d[0] for d in data])
+        cs = np.array([d[1] for d in data])
+        m = ms.reshape((N,N,self.p_size*scale**2))
+        Cinv = cs.reshape((N,N,self.p_size,self.p_size*scale**2))
         end = time.time()
         
         print("Parallel elapsed",end-start)

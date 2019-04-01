@@ -140,36 +140,27 @@ def init_array(arr1,arr2):
     global shared_arr2
     shared_arr2 = arr2
     
-def pixel_calc(_args):
-    patch = _args[0]
-    p0 = _args[1]
-    k = _args[2]
-    T = _args[3]
-    count = args[4]
+def pixel_calc(patch,T,size,queue):
+    #def pixel_calc(_args):
+    #patch = _args[0]
+    #T = _args[1]
+    #size = _args[2]
+    #queue = _args[3]
     if patch is None:
         m = None,
         Cinv = None
-        return
-    
+        return np.asarray([np.zeros(size),np.zeros(size**2)])
+    if len(patch.shape) != 2:
+        return np.asarray([np.zeros(size),np.zeros(size**2)])
     m = np.mean(patch,axis = 0) # Calculate the mean of the column
-    nc = 0
-    print("here")
-    for i in range(count*m.shape,(count+1)*m.shape):
-        shared_arr1[i] = m[nc]
-        print(m[nc],shared_arr1[i])
-        nc += 1
-    nc = 0
     # Calculate the covariance matrix
-    S = sample_covariance(patch, _args[4], T)
+    S = sample_covariance(patch, m, T)
     rho = shrinkage_factor(S, T) 
     F = diag_sample_covariance(S)
     C = covariance(rho, S, F)    
-    cinv = np.linalg.inv(C)
-    for i in range(count*cinv.shape,(count+1)*cinv.shape):
-        shared_arr2[i] = cinv[nc]
-        nc+=1
-    #print("here for px",p0)
-    #return np.array([p0,m,Cinv])
+    Cinv = np.linalg.inv(C).flatten()
+    queue.put((m,Cinv))
+    #return [m,Cinv]
 
 
 def covariance(rho, S, F):
