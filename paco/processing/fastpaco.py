@@ -25,36 +25,12 @@ class FastPACO(PACO):
         self.m_p_size = int(patch_size) # Number of pixels in a patch
         self.m_psf_rad = int(np.ceil(np.sqrt(patch_size/np.pi))) # width of a patch
         self.m_mask = None
+        self.m_psf = None
         return
 
     """
     Algorithm Functions
-    """    
-    def PACO(self,angles,
-             params,
-             scale = 1,
-             model_name=gaussian2d_model,
-             cpu = 1):
-        """
-        PACO
-        This function wraps the actual PACO algorithm, setting up the pixel coordinates 
-        that will be iterated over. The output will probably be changes to output the
-        true SNR map.
-        :angles: Array of angles from frame rotation
-        :resolution: Amount of oversampling of image to improve positioning of PSF (don't use yet)
-        """
-        if scale != 1:
-            self.rescaleImageSequence(scale)
-        # Setup pixel coordinates
-        x,y = np.meshgrid(np.arange(0,int(scale * self.m_height)),
-                          np.arange(0,int(scale * self.m_width)))
-        phi0s = np.column_stack((x.flatten(),y.flatten()))
-        # Compute a,b
-        a,b = self.PACOCalc(np.array(phi0s),angles, params, scale, model_name,cpu = cpu)
-        # Reshape into a 2D image, with the same dimensions as the input images
-        a = np.reshape(a,(self.m_height,self.m_width))
-        b = np.reshape(b,(self.m_height,self.m_height))
-        return a,b
+    """   
     
     def PACOCalc(self,
                  phi0s,
@@ -165,7 +141,7 @@ class FastPACO(PACO):
         
         # Create arrays needed for storage
         # PSF Template
-        h_template = self.modelFunction(k,model_name, params)
+        h_template = self.modelFunction(k, model_name, params)
         h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
         h = np.zeros((self.m_height,self.m_width,self.m_p_size*scale**2)) # The off axis PSF at each point
 

@@ -61,10 +61,14 @@ class PACOModule(ProcessingModule):
              fp = paco.processing.fullpaco.FullPACO(patch_size = self.m_patch_size)
 
         fp.set_image_sequence(images)
+        fp.setPSF(psf)
         a,b  = fp.PACO(angles,self.m_scale,psf,params = params=self.m_psf_params)
 
         if self.m_flux_calc:
-            
+            p0 = [0,0]
+            eps = 0.1
+            ests = [9999.0]
+            fp.fluxEstimate(p0s,angles,eps,params,ests,scale)
         snr = b/sqrt(a)
         self.m_snr_output_port.set_all(snr, data_dim=2)
         self.m_snr_output_port.close()
