@@ -62,7 +62,7 @@ class FluxPACO(PACO):
          # the inverse covariance matrix at each point
         Cinv  = np.zeros((T,self.p_size*scale**2,self.p_size*scale**2))
 
-        h_template = self.model_function(k,model_name, params)
+        h_template = self.modelFunction(k,model_name, params)
         h_mask = createCircularMask(h_template.shape,radius = self.psf_rad*scale)
         h = np.zeros((self.p_size*scale**2)) # The off axis PSF at each point
         if scale!=1:
@@ -76,7 +76,7 @@ class FluxPACO(PACO):
         x,y = np.meshgrid(np.arange(0,int(self.im_stack.shape[1])),
                           np.arange(0,int(self.im_stack.shape[2])))
         angles_px = getRotatedPixels(x,y,p0,angles)
-        patch = self.get_patch(ang, k, mask) # Get the column of patches at this point
+        patch = self.getPatch(ang, k, mask) # Get the column of patches at this point
         while np.abs(ahat - aprev) > self.epsilon*ahat:
             # Get list of pixels for each rotation angle            
             # Iterate over each temporal frame/each angle
@@ -96,9 +96,9 @@ class FluxPACO(PACO):
         T = patch.shape[0]
         unbiased = np.array([apatch- est*model for apatch in patch])
         m = np.mean(unbiased,axis = 0)
-        S = sample_covariance(unbiased, m)
-        rho = self.shrinkage_factor(S, T)
-        F = self.diag_sample_covariance(S)
+        S = sampleCovariance(unbiased, m)
+        rho = self.shrinkageFactor(S, T)
+        F = self.diagSampleCovariance(S)
         C = self.covariance(rho, S, F)
         Cinv = np.linalg.inv(C)
         return m,Cinv

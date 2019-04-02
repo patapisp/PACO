@@ -58,13 +58,13 @@ def resizeImage(image, scaleFactor):
 def gaussian2d(x,y,A, sigma):
     return A*np.exp(-(x**2+y**2)/(2*sigma**2))
 
-def gaussian2d_model(n,params):
+def gaussian2dModel(n,params):
     sigma = params["sigma"]
     dim = int(n/2)
     x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
     return 1.0/(2.0*np.pi*sigma**2) * np.exp(-((x+0.5)**2+(y+0.5)**2)/(2*sigma**2))     
 
-def psftemplate_model(n, params):
+def psfTemplateModel(n, params):
     """
     Model using a psf template directly from the data. 
     Template should be normalized such that the sum equals 1.
@@ -83,7 +83,7 @@ def psftemplate_model(n, params):
         psf_template = psf_template/np.sum(psf_template)        
     return psf_template
 
-def cart_to_pol(coords):
+def cartToPol(coords):
     """
     Takes cartesian (2D) coordinates and transforms them into polar.
     """
@@ -96,7 +96,7 @@ def cart_to_pol(coords):
         phi = np.arctan2(coords[:,1], coords[:,0])
         return np.column_stack(rho,phi)
 
-def pol_to_cart(coords):
+def polToCart(coords):
     if len(coords.shape) == 1:
         x = coords[0]*np.cos(coords[1])
         y = coords[0]*np.sin(coords[0])
@@ -106,7 +106,7 @@ def pol_to_cart(coords):
         y = coords[:,0]*np.sin(coords[:,1])
         return np.column_stack(x,y)
 
-def int_pol_to_cart(coords):
+def intPolToCart(coords):
     if len(coords.shape) == 1:
         x = int(coords[0]*np.cos(coords[1]))
         y = int(coords[0]*np.sin(coords[0]))
@@ -116,7 +116,7 @@ def int_pol_to_cart(coords):
         y = coords[:,0]*np.sin(coords[:,1]).astype(int)
         return np.column_stack(x,y)
 
-def grid_cart_to_pol(x,y):
+def gridCartToPol(x,y):
     """
     Takes cartesian (2D) coordinates and transforms them into polar.
     """
@@ -124,45 +124,15 @@ def grid_cart_to_pol(x,y):
     phi = np.arctan2(y, x)
     return(rho, phi)
 
-def grid_pol_to_cart(r, phi):
+def gridPolToCart(r, phi):
     x = r*np.cos(phi)
     y = r*np.sin(phi)
     return (x,y)
 
 
-
-shared_arr1 = 0
-shared_arr2 = 0
-## Single funcs for parallel processing
-def init_array(arr1,arr2):
-    global shared_arr1
-    shared_arr1 = arr1
-    global shared_arr2
-    shared_arr2 = arr2
-    
-def pixel_calc(patch,T,size,queue):
-    #def pixel_calc(_args):
-    #patch = _args[0]
-    #T = _args[1]
-    #size = _args[2]
-    #queue = _args[3]
-    if patch is None:
-        m = None,
-        Cinv = None
-        return np.asarray([np.zeros(size),np.zeros(size**2)])
-    if len(patch.shape) != 2:
-        return np.asarray([np.zeros(size),np.zeros(size**2)])
-    m = np.mean(patch,axis = 0) # Calculate the mean of the column
-    # Calculate the covariance matrix
-    S = sample_covariance(patch, m, T)
-    rho = shrinkage_factor(S, T) 
-    F = diag_sample_covariance(S)
-    C = covariance(rho, S, F)    
-    Cinv = np.linalg.inv(C).flatten()
-    queue.put((m,Cinv))
-    #return [m,Cinv]
-
-
+"""
+Math functions for computing patch covariance
+"""
 def covariance(rho, S, F):
     """
     Ĉ
@@ -178,7 +148,7 @@ def covariance(rho, S, F):
     #fig.colorbar(im1,ax = ax)
     return C
 
-def sample_covariance(r, m, T):
+def sampleCovariance(r, m, T):
     """
     Ŝ
     
@@ -192,7 +162,7 @@ def sample_covariance(r, m, T):
     S = (1.0/T)*np.sum([np.cov(np.stack((p, m)), rowvar = False, bias = False) for p in r],axis = 0)
     return S
     
-def diag_sample_covariance(S):
+def diagSampleCovariance(S):
     """
     F
     
@@ -201,7 +171,7 @@ def diag_sample_covariance(S):
     """
     return np.diag(np.diag(S))
 
-def shrinkage_factor(S, T):
+def shrinkageFactor(S, T):
     """
     ρ
 

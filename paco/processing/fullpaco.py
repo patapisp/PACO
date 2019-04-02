@@ -3,7 +3,6 @@ This module implements ALGORITHM 1 from Flasseur et al.
 It uses patch covariance to determine the signal to noise
 ratio of a signal within ADI image data.
 """
-from .. import core
 from paco.util.util import *
 from .paco import PACO
 import matplotlib.pyplot as plt
@@ -11,21 +10,24 @@ import sys
 
 class FullPACO(PACO):
     def __init__(self,                 
-                 patch_size = 49,
-                 file_name = None,
-                 directory = None):
-        self.filename = file_name
-        self.directory = directory
-        self.FitsInput = None
-        self.im_stack = []
-        self.p_size = int(patch_size) # Number of pixels in a patch
-        self.psf_rad = int(np.ceil(np.sqrt(patch_size/np.pi))) # width of a patch
+                 patch_size = 49):
+        self.m_im_stack = []
+        self.m_nFrames = 0
+        self.m_width = 0
+        self.m_height = 0
+        self.m_p_size = int(patch_size) # Number of pixels in a patch
+        self.m_psf_rad = int(np.ceil(np.sqrt(patch_size/np.pi))) # width of a patch
+        self.m_mask = None
         return
     
     """
     Algorithm Functions
     """   
-    def PACO(self,angles, params, scale = 1, model_name=gaussian2d_model):
+    def PACO(self,angles,
+             params,
+             scale = 1,
+             model_name=gaussian2d_model,
+             cpu = 1):
         """
         PACO
         This function wraps the actual PACO algorithm, setting up the pixel coordinates 
@@ -35,18 +37,16 @@ class FullPACO(PACO):
         :resolution: Amount of oversampling of image to improve positioning of PSF (don't use yet)
         """
         if scale != 1:
-            print("Rescaling")
-            self.rescale_image_sequence(scale)
-            print(self.im_stack.shape)
+            self.rescaleImageSequence(scale)
         # Setup pixel coordinates
-        x,y = np.meshgrid(np.arange(0,int(self.im_stack.shape[1])),
-                          np.arange(0,int(self.im_stack.shape[2])))
+        x,y = np.meshgrid(np.arange(0,int(scale * self.m_height)),
+                          np.arange(0,int(scale * self.m_width)))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
-        a,b = self.PACO_calc(np.array(phi0s),angles, params, scale, model_name)
+        a,b = self.PACOCalc(np.array(phi0s),angles, params, scale, model_name,cpu = cpu)
         # Reshape into a 2D image, with the same dimensions as the input images
-        a = np.reshape(a,(self.im_stack.shape[1],self.im_stack.shape[2]))
-        b = np.reshape(b,(self.im_stack.shape[1],self.im_stack.shape[2]))
+        a = np.reshape(a,(self.m_height,self.m_width))
+        b = np.reshape(b,(self.m_height,self.m_height))
         return a,b
     
     def PACO_calc(self, phi0s, angles, params, scale = 1, model_name=gaussian2d_model):
@@ -60,32 +60,34 @@ class FullPACO(PACO):
         :angles: Array of angles from frame rotation
         :model_name: Name of the template for the off-axis PSF
         """
-        N = self.im_stack.shape[1] # Length of an image axis (assume a square image)
         npx = len(phi0s)  # Number of pixels in an image
         dim = (N/2)
         try:
-            assert npx == N**2
+            assert npx == self.m_width*self.m_height
         except AssertionError:
             print("Position grid does not match pixel grid.")
             sys.exit(1)
         
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
-        T = len(self.im_stack) # Number of temporal frames
-        k = int(2*np.ceil(scale * self.psf_rad ) + 2) # Width of a patch, just for readability
+        T = len(self.m_im_stack) # Number of temporal frames
+        k = int(2*np.ceil(scale * self.m_psf_rad ) + 2) # Width of a patch, just for readability
 
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((T,T,self.p_size*scale**2)) # 2d selection of pixels around a given point
-        mask =  createCircularMask((k,k),radius = self.psf_rad*scale)
-        
-        m     = np.zeros((N,N,self.p_size*scale**2)) # the mean of a temporal column of patches at each pixel
-        Cinv  = np.zeros((N,N,self.p_size*scale**2,self.p_size*scale**2)) # the inverse covariance matrix at each point
+        # 2d selection of pixels around a given point
+        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size*scale**2))
+        self.m_mask =  createCircularMask((k,k),radius = self.m_psf_rad*scale)
+
+        # the mean of a temporal column of patches at each pixel
+        m     = np.zeros((self.m_nFrames,self.m_p_size*scale**2))
+        # the inverse covariance matrix at each point
+        Cinv  = np.zeros((self.m_nFrames,self.m_p_size*scale**2,self.p_size*scale**2))
 
         h_template = self.model_function(k,model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius = self.psf_rad*scale)
-        h = np.zeros((N,N,self.p_size*scale**2)) # The off axis PSF at each point
+        h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
+        h = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # The off axis PSF at each point
         print("Running PACO...")
         
         # Set up coordinates so 0 is at the center of the image                     
@@ -103,14 +105,8 @@ class FullPACO(PACO):
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
-                patch[l] = self.get_patch(ang, k, mask) # Get the column of patches at this point
-                m[l] = np.mean(patch[l], axis=0) # Calculate the mean of the column
-                # Calculate the covariance matrix
-                S = self.sample_covariance(patch[l], m[l], T)
-                rho = self.shrinkage_factor(S, T)
-                F = self.diag_sample_covariance(S)
-                C = self.covariance(rho, S, F)
-                Cinv[l] = np.linalg.inv(C)
+                patch[l] = self.getPatch(ang, k, self.m_mask) # Get the column of patches at this point
+                m[l],Cinv[l] = self.pixelCalc(self.m_nFrames,self.m_p_size)
                 if scale!=1:
                     h[l] = resizeImage(h_template,scale)[h_mask]
                 else:
