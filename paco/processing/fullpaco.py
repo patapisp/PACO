@@ -24,7 +24,7 @@ class FullPACO(PACO):
     """
     Algorithm Functions
     """     
-    def PACO_calc(self, phi0s, angles, params, scale = 1, model_name=gaussian2d_model):
+    def PACOCalc(self, phi0s, angles, params, scale = 1, model_name=gaussian2d_model):
         """
         PACO_calc
         
