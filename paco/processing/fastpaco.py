@@ -226,22 +226,22 @@ class FastPACO(PACO):
             h_template = self.m_psf
         else:
             h_template = self.modelFunction(k, model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
-        h = np.zeros((self.m_height,self.m_width,self.m_p_size*scale**2)) # The off axis PSF at each point
+        h_mask = createCircularMask(h_template.shape,radius =int( self.m_psf_rad*scale))
+        h = np.zeros((self.m_height,self.m_width,int(self.m_p_size*scale**2))) # The off axis PSF at each point
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
         patches = []
-        patch = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # 2d selection of pixels around a given point
+        patch = np.zeros((self.m_nFrames,int(self.m_p_size*scale**2))) # 2d selection of pixels around a given point
         mask =  createCircularMask((k,k),radius = self.m_psf_rad)
                 
         # the mean of a temporal column of patches at each pixel
-        m     = np.zeros((self.m_height*self.m_width*self.m_p_size*scale**2)) 
+        m     = np.zeros((self.m_height*self.m_width*int(self.m_p_size*scale**2))) 
         m_C = np.ctypeslib.as_array(m)
         #N*N*self.p_size*scale**2
 
         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_height*self.m_width*self.m_p_size*self.m_p_size*scale**2)) 
+        Cinv  = np.zeros((self.m_height*self.m_width*self.m_p_size*int(self.m_p_size*scale**2))) 
         Cinv_C  = np.ctypeslib.as_array(Cinv)
         #N*N*self.p_size*self.p_size*scale**2
 
@@ -303,8 +303,8 @@ class FastPACO(PACO):
         '''
         ms = np.array([d[0] for d in data])
         cs = np.array([d[1] for d in data])
-        m = ms.reshape((self.m_height,self.m_width,self.m_p_size*scale**2))
-        Cinv = cs.reshape((self.m_height,self.m_width,self.m_p_size,self.m_p_size*scale**2))
+        m = ms.reshape((self.m_height,self.m_width,int(self.m_p_size*scale**2)))
+        Cinv = cs.reshape((self.m_height,self.m_width,int(self.m_p_size*scale),int(self.m_p_size*scale)))
         end = time.time()
         print("Parallel elapsed",end-start)
         return Cinv,m,h
