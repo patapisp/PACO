@@ -170,8 +170,11 @@ class PACO:
         """    
         if self.m_psf:
             return self.m_psf
+        if model is None:
+            print("Please input either a 2D PSF or a model function.")
+            sys.exit(1)
         else:
-            if model.__name__ == "psftemplate_model":
+            if model.__name__ == "psfTemplateModel":
                 try:
                     return model(n, params)
                 except ValueError:
