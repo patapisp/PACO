@@ -163,10 +163,7 @@ class FastPACO(PACO):
         
         # Create arrays needed for storage
         # PSF Template
-        if self.m_psf:
-            h_template = self.m_psf
-        else:
-            h_template = self.modelFunction(k, model_name, params)
+        h_template = self.modelFunction(k, model_name, params)
         h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
         h = np.zeros((self.m_height,self.m_width,self.m_p_size*scale**2)) # The off axis PSF at each point
 
@@ -221,10 +218,7 @@ class FastPACO(PACO):
         
         # Create arrays needed for storage
         # PSF Template
-        if self.m_psf:
-            h_template = self.m_psf
-        else:
-            h_template = self.modelFunction(k, model_name, params)
+        h_template = self.modelFunction(k,model_name, params)
         h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
         h = np.zeros((self.m_height,self.m_width,self.m_p_size*scale**2)) # The off axis PSF at each point
 
