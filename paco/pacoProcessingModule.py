@@ -114,5 +114,5 @@ class PACOModule(ProcessingModule):
         
         # Output
         snr = b/np.sqrt(a)
-        self.m_snr_output_port.set_all(snr, data_dim=2)
-        self.m_snr_output_port.close()
+        self.m_snr_out_port.set_all(snr, data_dim=2)
+        self.m_snr_out_port.close()
