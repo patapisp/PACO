@@ -5,9 +5,9 @@ from paco.util.util import *
 
 class PACO:
     def __init__(self,
-                 image_stack = None
-                 angles = None
-                 psf = None
+                 image_stack = None,
+                 angles = None,
+                 psf = None,
                  patch_size = 49):
         """
         PACO Parent Class Constructor
@@ -26,7 +26,7 @@ class PACO:
         self.m_nFrames = 0
         self.m_width = 0
         self.m_height = 0
-        if image_stack:
+        if image_stack is not None:
             self.m_nFrames = self.m_im_stack.shape[0]
             self.m_width = self.m_im_stack.shape[2]
             self.m_height = self.m_im_stack.shape[1]
@@ -41,7 +41,7 @@ class PACO:
     def PACO(self,
              model_params,
              scale = 1,
-             model_name=gaussian2d_model,
+             model_name=gaussian2dModel,
              cpu = 1):
         """
         PACO
@@ -66,7 +66,7 @@ class PACO:
                           np.arange(0,int(scale * self.m_width)))
         phi0s = np.column_stack((x.flatten(),y.flatten()))
         # Compute a,b
-        a,b = self.PACOCalc(np.array(phi0s), params, scale, model_name,cpu = cpu)
+        a,b = self.PACOCalc(np.array(phi0s), model_params, scale, model_name,cpu = cpu)
         # Reshape into a 2D image, with the same dimensions as the input images
         a = np.reshape(a,(self.m_height,self.m_width))
         b = np.reshape(b,(self.m_height,self.m_height))
@@ -160,8 +160,8 @@ class PACO:
         rho = shrinkageFactor(S, T) 
         F = diagSampleCovariance(S)
         C = covariance(rho, S, F)    
-        Cinv = np.linalg.inv(C).flatten()
-        return (m,Cinv)
+        Cinv = np.linalg.inv(C)
+        return m,Cinv
     
     def modelFunction(self, n, model, params):
         """
@@ -206,7 +206,13 @@ class PACO:
     """
     FluxPACO
     """
-    def fluxEstimate(self, p0, eps, params, initial_est = 9999.0, scale = 1, model_name=gaussian2d_model):
+    def fluxEstimate(self,
+                     p0,
+                     eps,
+                     params,
+                     initial_est = 9999.0,
+                     scale = 1,
+                     model_name=gaussian2dModel):
         """
         Unbiased estimate of the flux of a source located at p0
         Parameters

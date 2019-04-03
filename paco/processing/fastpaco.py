@@ -16,9 +16,9 @@ import time
 #Pacito
 class FastPACO(PACO):
     def __init__(self,                 
-                 image_stack = None
-                 angles = None
-                 psf = None
+                 image_stack = None,
+                 angles = None,
+                 psf = None,
                  patch_size = 49):   
         """
         FastPACO Parent Class Constructor
@@ -37,7 +37,7 @@ class FastPACO(PACO):
         self.m_nFrames = 0
         self.m_width = 0
         self.m_height = 0
-        if image_stack:
+        if image_stack is not None:
             self.m_nFrames = self.m_im_stack.shape[0]
             self.m_width = self.m_im_stack.shape[2]
             self.m_height = self.m_im_stack.shape[1]
@@ -56,7 +56,7 @@ class FastPACO(PACO):
                  phi0s,
                  params,
                  scale = 1,
-                 model_name=gaussian2d_model,
+                 model_name=gaussian2dModel,
                  cpu = 1):
         """
         PACO_calc
@@ -158,12 +158,12 @@ class FastPACO(PACO):
     
         print("Precomputing Statistics...")
         npx = len(phi0s)           # Number of pixels in an image      
-        dim = int(N/2)
+        dim = int(self.m_width/2)
         k = int(2*np.ceil(scale * self.m_psf_rad ) + 2) # Width of a patch, just for readability
         
         # Create arrays needed for storage
         # PSF Template
-        if self.m_psf:
+        if self.m_psf is not None:
             h_template = self.m_psf
         else:
             h_template = self.modelFunction(k, model_name, params)
@@ -216,12 +216,12 @@ class FastPACO(PACO):
     
         print("Precomputing Statistics using %d Processes...",cpu)
         npx = len(phi0s)           # Number of pixels in an image      
-        dim = int(N/2)
+        dim = int(self.m_width/2)
         k = int(2*np.ceil(scale * self.m_psf_rad ) + 2) # Width of a patch, just for readability
         
         # Create arrays needed for storage
         # PSF Template
-        if self.m_psf:
+        if self.m_psf is not None:
             h_template = self.m_psf
         else:
             h_template = self.modelFunction(k, model_name, params)
@@ -289,7 +289,7 @@ class FastPACO(PACO):
         data = p.map(self.pixelCalc, arglist, chunksize = int(npx/16))
         p.close()
         p.join()
-       '''
+        '''
         queue.put(None)
         while True:
             item = queue.get()

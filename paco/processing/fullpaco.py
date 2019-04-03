@@ -10,9 +10,9 @@ import sys
 
 class FullPACO(PACO):
     def __init__(self,                 
-                 image_stack = None
-                 angles = None
-                 psf = None
+                 image_stack = None,
+                 angles = None,
+                 psf = None,
                  patch_size = 49):   
         """
         FastPACO Parent Class Constructor
@@ -31,7 +31,7 @@ class FullPACO(PACO):
         self.m_nFrames = 0
         self.m_width = 0
         self.m_height = 0
-        if image_stack:
+        if image_stack is not None:
             self.m_nFrames = self.m_im_stack.shape[0]
             self.m_width = self.m_im_stack.shape[2]
             self.m_height = self.m_im_stack.shape[1]
@@ -46,7 +46,7 @@ class FullPACO(PACO):
     """
     Algorithm Functions
     """     
-    def PACOCalc(self, phi0s, params, scale = 1, model_name=gaussian2d_model, cpu = 1):
+    def PACOCalc(self, phi0s, params, scale = 1, model_name=gaussian2dModel, cpu = 1):
         """
         PACO_calc
         
@@ -91,7 +91,7 @@ class FullPACO(PACO):
         # the inverse covariance matrix at each point
         Cinv  = np.zeros((self.m_nFrames,self.m_p_size*scale**2,self.p_size*scale**2))
 
-        if self.m_psf:
+        if self.m_psf is not None:
             h_template = self.m_psf
         else:
             h_template = self.modelFunction(k, model_name, params)
