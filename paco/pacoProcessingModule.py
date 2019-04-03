@@ -1,6 +1,7 @@
 import paco as paco
 from paco.util.util import *
 from pynpoint.core.processing import ProcessingModule
+import numpy as np
 
 class PACOModule(ProcessingModule):
     def __init__(self,
@@ -112,6 +113,6 @@ class PACOModule(ProcessingModule):
             fp.fluxEstimate(p0s,angles,eps,params,ests,scale)
         
         # Output
-        snr = b/sqrt(a)
+        snr = b/np.sqrt(a)
         self.m_snr_output_port.set_all(snr, data_dim=2)
         self.m_snr_output_port.close()
