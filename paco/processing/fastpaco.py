@@ -94,7 +94,7 @@ class FastPACO(PACO):
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
         patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size)) # 2d selection of pixels around a given point
-        self.m_mask =  createCircularMask((k,k),radius = self.m_psf_rad)
+        mask =  createCircularMask((k,k),radius = self.m_psf_rad)
 
         if cpu == 1:
             Cinv,m,h = self.computeStatistics(phi0s, params, scale = scale, model_name = model_name)
@@ -127,7 +127,7 @@ class FastPACO(PACO):
                 Cinlst.append(Cinv[int(ang[0])][int(ang[1])])
                 mlst.append(m[int(ang[0])][int(ang[1])])
                 hlst.append(h[int(ang[0])][int(ang[1])])
-                patch[l] = self.getPatch(ang, k, self.m_mask)
+                patch[l] = self.getPatch(ang, k, mask)
             Cinv_arr = np.array(Cinlst)
             m_arr   = np.array(mlst)
             hl   = np.array(hlst)
@@ -172,8 +172,8 @@ class FastPACO(PACO):
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patches = []
         patch = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # 2d selection of pixels around a given point
+        mask =  createCircularMask((k,k),radius = self.m_psf_rad)
 
         # the mean of a temporal column of patches centered at each pixel
         m     = np.zeros((self.m_height,self.m_width,self.m_p_size*scale**2)) 
@@ -184,8 +184,8 @@ class FastPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for p0 in phi0s:
-            apatch = self.getPatch(p0,k,self.m_mask)
-            m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = self.pixelCalc(patch)
+            apatch = self.getPatch(p0,k,mask)
+            m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = self.pixelCalc(apatch)           
             if scale!=1:
                 h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
             else:
@@ -232,7 +232,8 @@ class FastPACO(PACO):
         # for patches: for each time, we need to store a column of patches
         patches = []
         patch = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # 2d selection of pixels around a given point
-
+        mask =  createCircularMask((k,k),radius = self.m_psf_rad)
+                
         # the mean of a temporal column of patches at each pixel
         m     = np.zeros((self.m_height*self.m_width*self.m_p_size*scale**2)) 
         m_C = np.ctypeslib.as_array(m)
@@ -262,7 +263,7 @@ class FastPACO(PACO):
         #queue = Queue(100000000)
 
         #patches = [np.copy(np.array(self.get_patch(p0, k, self.mask))) for p0 in phi0s]
-        arglist = [np.copy(np.array(self.getPatch(p0, k, self.m_mask))) for p0 in phi0s]
+        arglist = [np.copy(np.array(self.getPatch(p0, k, mask))) for p0 in phi0s]
         '''
         jobs = []
         result = []

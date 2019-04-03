@@ -84,7 +84,7 @@ class FullPACO(PACO):
         # for patches: for each time, we need to store a column of patches
         # 2d selection of pixels around a given point
         patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size*scale**2))
-        self.m_mask =  createCircularMask((k,k),radius = self.m_psf_rad*scale)
+        mask =  createCircularMask((k,k),radius = self.m_psf_rad*scale)
 
         # the mean of a temporal column of patches at each pixel
         m     = np.zeros((self.m_nFrames,self.m_p_size*scale**2))
@@ -114,7 +114,7 @@ class FullPACO(PACO):
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
-                patch[l] = self.getPatch(ang, k, self.m_mask) # Get the column of patches at this point
+                patch[l] = self.getPatch(ang, k, mask) # Get the column of patches at this point
                 m[l],Cinv[l] = self.pixelCalc(self.m_nFrames,self.m_p_size)
                 if scale!=1:
                     h[l] = resizeImage(h_template,scale)[h_mask]

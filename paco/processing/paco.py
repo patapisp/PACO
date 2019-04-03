@@ -142,6 +142,8 @@ class PACO:
         patch : arr
             Array of circular (flattened) patches centered on the same physical pixel vertically throughout the image stack
         """
+        if patch is None:
+            return np.asarray([None,None])
         T = patch.shape[0]
         size = patch.shape[1]
         #def pixel_calc(_args):
@@ -149,12 +151,7 @@ class PACO:
         #T = _args[1]
         #size = _args[2]
         #queue = _args[3]
-        if patch is None:
-            return np.asarray([np.zeros(size),np.zeros(size**2)])
-        if len(patch.shape) != 2:
-            return np.asarray([np.zeros(size),np.zeros(size**2)])
         m = np.mean(patch,axis = 0) # Calculate the mean of the column
-
         # Calculate the covariance matrix
         S = sampleCovariance(patch, m, T)
         rho = shrinkageFactor(S, T) 
