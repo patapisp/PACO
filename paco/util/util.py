@@ -42,7 +42,7 @@ def getRotatedPixels(x,y,p0,angles):
     # Current pixel
     phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
     # Convert to polar coordinates
-    rphi0 = cart_to_pol(phi0)
+    rphi0 = cartToPol(phi0)
     angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
     
     # Rotate the polar coordinates by each frame angle
@@ -50,7 +50,7 @@ def getRotatedPixels(x,y,p0,angles):
     angles_pol = np.array(list(zip(*angles_ind)))
     
     # Convert from polar to cartesian and pixel coordinates
-    angles_px = np.array(grid_pol_to_cart(angles_pol[0], angles_pol[1]))+int(x.shape[0]/2)
+    angles_px = np.array(gridPolToCart(angles_pol[0], angles_pol[1]))+int(x.shape[0]/2)
     angles_px = angles_px.T
     angles_px = np.fliplr(angles_px)
     return angles_px
