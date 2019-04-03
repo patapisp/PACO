@@ -114,7 +114,7 @@ class FastPACO(PACO):
             angles_px = getRotatedPixels(x,y,p0,self.m_angles)
 
             # Ensure within image bounds
-            if(int(np.max(angles_px.flatten()))>=N or int(np.min(angles_px.flatten()))<0):
+            if(int(np.max(angles_px.flatten()))>=self.m_width or int(np.min(angles_px.flatten()))<0):
                 a[i] = np.nan
                 b[i] = np.nan
                 continue
