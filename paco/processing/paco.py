@@ -208,13 +208,15 @@ class PACO:
     """
     def fluxEstimate(self,
                      p0,
-                     eps,
                      params,
-                     initial_est = 9999.0,
+                     eps = 0.1,
+                     initial_est = 0.0,
                      scale = 1,
                      model_name=gaussian2dModel):
         """
         Unbiased estimate of the flux of a source located at p0
+        The estimate of the flux is given by ahat * h, where h is the normalised PSF template
+        Not sure how the cost function from Flasseur factors in, or why this is so unstable
         Parameters
         ------------
         p0 : arr
@@ -230,54 +232,53 @@ class PACO:
         model_name: method
             Name of the template for the off-axis PSF
         """
-        npx = len(phi0s)  # Number of pixels in an image
+        npx = self.m_width*self.m_height  # Number of pixels in an image
         dim = (self.m_width/2)
         try:
-            assert npx == self*m_width*self.m_height
+            assert npx == self.m_width*self.m_height
         except AssertionError:
             print("Position grid does not match pixel grid.")
             sys.exit(1)
-
-        # Unbiased flux estimation
-        a = 0.0
-        b = 0.0
-        ahat = initial_est
-        aprev = 0.0
         k = int(2*np.ceil(scale * self.m_psf_rad ) + 2) # Width of a patch, just for readability
-
+        print("Computing unbiased flux estimate...")
+        
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size*scale**2))
+        patch = np.zeros((self.m_nFrames,self.m_nFrames,int(self.m_p_size*scale**2)))
         mask =  createCircularMask((k,k),radius = self.m_psf_rad*scale)
-
-        # the mean of a temporal column of patches at each pixel
-        m  = np.zeros((self.m_nFrames,self.m_p_size*scale**2))
-        
-         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_nFrames,self.m_p_size*scale**2,self.m_p_size*scale**2))
-
         h_template = self.modelFunction(k,model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
-        h = np.zeros((self.p_size*scale**2)) # The off axis PSF at each point
-        if scale!=1:
-            h = resizeImage(h_template,scale)[h_mask]
-        else:
-            h = h_template[h_mask]
+        h_mask = createCircularMask(h_template.shape,radius = int(self.m_psf_rad*scale))
+        h = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # The off axis PSF at each point
 
-        print("Computing unbiased flux estimate...")
         x,y = np.meshgrid(np.arange(0,int(self.m_height)),
                           np.arange(0,int(self.m_width)))
         angles_px = getRotatedPixels(x,y,p0,self.m_angles)
-        patch = self.getPatch(ang, k, mask) # Get the column of patches at this point
-        while np.abs(ahat - aprev) > eps*ahat:
-            for l,ang in enumerate(angles_px):
-                m[l], Cinv[l] = self.iterStep(p0,ahat,patch[l],h)
+
+        # Fill patches and signal template
+        for l,ang in enumerate(angles_px):
+            patch[l] = self.getPatch(ang, k, mask) # Get the column of patches at this point
+            if scale!=1:
+                h[l] = resizeImage(h_template,scale)[h_mask]
+            else:
+                h[l] = h_template[h_mask]
+
+        # the mean of a temporal column of patches at each pixel
+        m  = np.zeros((self.m_nFrames,int(self.m_p_size*scale**2)))    
+        # the inverse covariance matrix at each point
+        Cinv = np.zeros((self.m_nFrames,int(self.m_p_size*scale**2),int(self.m_p_size*scale**2)))
+        # Unbiased flux estimation
+        ahat = initial_est
+        aprev = 999999.0 # Arbitrary large value so that the loop will run   
+        while (np.abs(ahat - aprev) > (ahat * eps)):
+            a = 0.0
+            b = 0.0
+            for l in range(self.m_nFrames):
+                m[l], Cinv[l] = self.iterStep(p0,ahat,patch[l],h[l])
             a = self.al(h, Cinv)
-            b = max(self.bl(h, Cinv, patch, m),0.0)
+            b = self.bl(h, Cinv, patch, m)
             aprev = ahat
-            ahat = b/a
-        print("Done")
+            ahat = max(b,0.0)/a
         return ahat
   
 
@@ -295,12 +296,15 @@ class PACO:
         model : arr
             Template for PSF
         """
+        if patch is None:
+            return None,None
         T = patch.shape[0]
-        unbiased = np.array([apatch- est*model for apatch in patch])
+        
+        unbiased = np.array([apatch - est*model for apatch in patch])
         m = np.mean(unbiased,axis = 0)
-        S = sampleCovariance(unbiased, m)
-        rho = self.shrinkageFactor(S, T)
-        F = self.diagSampleCovariance(S)
-        C = self.covariance(rho, S, F)
+        S = sampleCovariance(unbiased, m, T)
+        rho = shrinkageFactor(S, T)
+        F = diagSampleCovariance(S)
+        C = covariance(rho, S, F)
         Cinv = np.linalg.inv(C)
         return m,Cinv
