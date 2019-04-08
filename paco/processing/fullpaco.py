@@ -123,7 +123,7 @@ class FullPACO(PACO):
 
             # Calculate a and b, matrices
             a[i] = self.al(h, Cinv)
-            b[i] = max(self.bl(h, Cinv, patch, m),0.0)
+            b[i] = self.bl(h, Cinv, patch, m)
         print("Done")
         return a,b
   

@@ -135,7 +135,7 @@ class FastPACO(PACO):
             #print(Cinlst.shape,mlst.shape,hlst.shape,a.shape,patch.shape)
             # Calculate a and b, matrices
             a[i] = self.al(hlst, Cinlst)
-            b[i] = max(self.bl(hlst, Cinlst, patch, mlst),0.0)
+            b[i] = self.bl(hlst, Cinlst, patch, mlst)
         print("Done")
         return a,b
 
