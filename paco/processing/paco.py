@@ -2,6 +2,8 @@
 This file will implement ALGORITHM 1 from the PACO paper
 """
 from paco.util.util import *
+import scipy.ndimage as ndimage
+import scipy.ndimage.filters as filters
 
 class PACO:
     def __init__(self,
@@ -308,3 +310,29 @@ class PACO:
         C = covariance(rho, S, F)
         Cinv = np.linalg.inv(C)
         return m,Cinv
+
+    def thresholdDetection(self,snr_map,threshold):
+        """
+        Returns a list of the pixel coordinates of center of signals above a given threshold
+        Parameters:
+        ------------
+        snr_map : arr
+            SNR map, b/sqrt(a)
+        threshold: float
+            Threshold for detection in sigma
+        """
+        data_max = filters.maximum_filter(snr_map,size = self.m_psf_rad)
+        maxima = (snr_map == data_max)
+        data_min = filters.minimum_filter(snr_map, self.m_psf_rad)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
+        
+        labeled, num_objects = ndimage.label(maxima)
+        slices = ndimage.find_objects(labeled)
+        x, y = [], []
+        for dy,dx in slices:
+            x_center = (dx.start + dx.stop - 1)/2
+            x.append(x_center)
+            y_center = (dy.start + dy.stop - 1)/2    
+            y.append(y_center)
+        return x,y
