@@ -109,8 +109,8 @@ class FullPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
-            if(i%(npx/10) == 0):
-                print(str(i/100) + "%")
+            #if(i%(npx/10) == 0):
+            #    print(str(i/100) + "%")
                 
             # Get list of pixels for each rotation angle
             angles_px = getRotatedPixels(x,y,p0,angles)
