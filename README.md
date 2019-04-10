@@ -2,7 +2,7 @@
  
 This package implements the algorithms developed by [Flasseur et. al 2018 [1]](https://www.aanda.org/articles/aa/abs/2018/10/aa32745-18/aa32745-18.html)
 
-It is implemented as a [Pynpoint](https://pynpoint.readthedocs.io/en/latest/) module, providing convinient usage as part of the Pynpoint Pipeline.
+It is implemented as a [Pynpoint](https://pynpoint.readthedocs.io/en/latest/) module, providing convinient usage as part of the Pynpoint Pipeline. The source code is located in the "paco" directory.
 
 ## Authors
 Polychronis Patapis, _ETH Zurich_
