@@ -70,8 +70,8 @@ class PACO:
         # Compute a,b
         a,b = self.PACOCalc(np.array(phi0s), model_params, scale, model_name,cpu = cpu)
         # Reshape into a 2D image, with the same dimensions as the input images
-        a = np.reshape(a,(self.m_height,self.m_width))
-        b = np.reshape(b,(self.m_height,self.m_height))
+        a = np.reshape(a,(int(self.m_height*scale),int(self.m_width*scale)))
+        b = np.reshape(b,(int(self.m_height*scale),int(self.m_height*scale)))
         return a,b
     
     """
@@ -234,8 +234,8 @@ class PACO:
         model_name: method
             Name of the template for the off-axis PSF
         """
-        npx = self.m_width*self.m_height  # Number of pixels in an image
-        dim = (self.m_width/2)
+        npx = int(self.m_width*self.m_height*scale**2)  # Number of pixels in an image
+        dim = int((self.m_width*scale)/2)
         try:
             assert npx == self.m_width*self.m_height
         except AssertionError:
@@ -247,12 +247,21 @@ class PACO:
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_nFrames,int(self.m_p_size*scale**2)))
-        mask =  createCircularMask((k,k),radius = self.m_psf_rad*scale)
-        h_template = self.modelFunction(k,model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius = int(self.m_psf_rad*scale))
-        h = np.zeros((self.m_nFrames,self.m_p_size*scale**2)) # The off axis PSF at each point
-
+        if self.m_psf is not None:
+            h_template = self.m_psf
+        else:
+            h_template = self.modelFunction(k, model_name, params)
+        h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
+        if self.m_p_size != len(h_mask[h_mask]):
+            self.m_p_size = len(h_mask[h_mask])      
+        h = np.zeros((self.m_nFrames,self.m_p_size)) # The off axis PSF at each point
+        
+        # Create arrays needed for storage
+        # Store for each image pixel, for each temporal frame an image
+        # for patches: for each time, we need to store a column of patches
+        # 2d selection of pixels around a given point
+        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size))
+        mask =  createCircularMask((k,k),radius = int(self.m_psf_rad*scale))
         x,y = np.meshgrid(np.arange(0,int(self.m_height)),
                           np.arange(0,int(self.m_width)))
         angles_px = getRotatedPixels(x,y,p0,self.m_angles)
@@ -266,9 +275,10 @@ class PACO:
                 h[l] = h_template[h_mask]
 
         # the mean of a temporal column of patches at each pixel
-        m  = np.zeros((self.m_nFrames,int(self.m_p_size*scale**2)))    
+        m     = np.zeros((self.m_nFrames,self.m_p_size))
         # the inverse covariance matrix at each point
-        Cinv = np.zeros((self.m_nFrames,int(self.m_p_size*scale**2),int(self.m_p_size*scale**2)))
+        Cinv  = np.zeros((self.m_nFrames,self.m_p_size,self.m_p_size))
+
         # Unbiased flux estimation
         ahat = initial_est
         aprev = 999999.0 # Arbitrary large value so that the loop will run   
