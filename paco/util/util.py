@@ -158,6 +158,29 @@ def gridPolToCart(r, phi):
 """
 Math functions for computing patch covariance
 """
+def pixelCalc(patch):
+    """
+    Calculate the mean and inverse covariance within a patch
+    Parameters
+    -------------
+    patch : arr
+        Array of circular (flattened) patches centered on the same physical pixel vertically throughout the image stack
+    """
+    if patch is None:
+        return np.asarray([None,None])
+    T = patch.shape[0]
+    size = patch.shape[1]
+
+    # Calculate the mean of the column
+    m = np.mean(patch,axis = 0) 
+    # Calculate the covariance matrix
+    S = sampleCovariance(patch, m, T)
+    rho = shrinkageFactor(S, T) 
+    F = diagSampleCovariance(S)
+    C = covariance(rho, S, F)    
+    Cinv = np.linalg.inv(C)
+    return m,Cinv
+
 def covariance(rho, S, F):
     """
     Ĉ: Shrinkage covariance matrix

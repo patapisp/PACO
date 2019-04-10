@@ -119,7 +119,7 @@ class FullPACO(PACO):
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
                 patch[l] = self.getPatch(ang, k, mask) # Get the column of patches at this point
-                m[l],Cinv[l] = self.pixelCalc(self.m_nFrames,self.m_p_size)
+                m[l],Cinv[l] = pixelCalc(patch[l])
                 if scale!=1:
                     h[l] = resizeImage(h_template,scale)[h_mask]
                 else:
