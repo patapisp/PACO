@@ -9,14 +9,17 @@ class PACOModule(ProcessingModule):
                  image_in_tag = "im_arr",
                  psf_in_tag = None,
                  snr_out_tag = "paco_snr",
+                 psf_model = None,
+                 angles = None,
+                 psf_rad = 4,
                  patch_size = 49,
                  scaling = 1.0,
                  algorithm = "fastpaco",
-                 angles = None,
                  flux_calc = False,
                  psf_params = None,
-                 psf_model = None,
-                 cpu_limit = 1
+                 cpu_limit = 1,
+                 threshold = 5.0,
+                 flux_prec = 0.05
     ):
         """
         Constructor of PACOModule.
@@ -59,8 +62,9 @@ class PACOModule(ProcessingModule):
         self.m_scale = scaling
         self.m_psf_params = psf_params
         self.m_cpu_lim = cpu_limit
-        self.m_model_function = psf_model
-        
+        self.m_model_function = psf_odel
+        self.m_eps = flux_prec
+        self.m_threshold = threshold
     def run(self):
         """
         Run function for PACO
@@ -79,41 +83,50 @@ class PACOModule(ProcessingModule):
         else:
             angles = self.m_image_in_port.get_attribute("PARANG")
         angles = angles - angles[0]
-        # Setup PACO
-        if self.m_algorithm == "fastpaco":
-            fp = paco.processing.fastpaco.FastPACO(angles = angles,
-                                                   patch_size = self.m_patch_size)
-        elif self.m_algorithm == "fullpaco":
-            fp = paco.processing.fullpaco.FullPACO(angles = angles,
-                                                   patch_size = self.m_patch_size)
-        else:
-            print("Please input either 'fastpaco' or 'fullpaco' for the algorithm")
-        fp.setImageSequence(images)
 
-        
+        px_scale = self.m_image_in_port.get_attribute("PIXSCALE")
         if self.m_psf_in_port is not None:
-            psf = self.m_psf_in_port.get_all()
-            fp.setPSF(psf)     
+            psf = self.m_psf_in_port.get_all()   
         elif self.m_psf_params is not None:
             psf = None
+            
+        # Setup PACO
+        if self.m_algorithm == "fastpaco":
+            fp = paco.processing.fastpaco.FastPACO(image_stack = images,
+                                                   angles = angles,
+                                                   psf = psf,
+                                                   psf_rad = self.m_psf_rad
+                                                   px_scale = self.m_px_scale,
+                                                   res_scale = self.m_scale,
+                                                   patch_area = self.m_patch_size)
+        elif self.m_algorithm == "fullpaco":
+            fp = paco.processing.fullpaco.FullPACO(image_stack = images,
+                                                   angles = angles,
+                                                   psf = psf,
+                                                   psf_rad = psf_rad
+                                                   px_scale = px_scale,
+                                                   res_scale = self.m_scale,
+                                                   patch_area = self.m_patch_size)
+        else:
+            print("Please input either 'fastpaco' or 'fullpaco' for the algorithm")
+
         
         # Run PACO
         # SNR = b/sqrt(a)
         # Flux estimate = b/a
-        a,b  = fp.PACO(scale = self.m_scale,
-                       model_params = self.m_psf_params,
+        a,b  = fp.PACO(model_params = self.m_psf_params,
                        model_name = self.m_model_function,
                        cpu = cpu)
 
+        snr = b/np.sqrt(a)
         # Iterative, unbiased flux estimation
         if self.m_flux_calc:
-            p0 = [0,0]
-            eps = 0.1
-            ests = [9999.0]
-            fp.fluxEstimate(p0s,angles,eps,params,ests,scale)
+            phi0s = fp.thresholdDetection(snr,self.m_threshold)
+            est = 0.0
+            fp.fluxEstimate(phi0s,self.m_eps,est)
         
         # Output
-        snr = b/np.sqrt(a)
+        
         # Set all creates new data set/overwrites
         # Try MEMORY keyword -
         # database dataset (eg images)

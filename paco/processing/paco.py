@@ -27,9 +27,9 @@ class PACO:
         psf : arr
             2D PSF image
         psf_rad : float
-            Radius of PSF in mas. Default values give 4px radius.
+            Radius of PSF in as. Default values give 4px radius.
         px_scale : float
-            mas per pixel.  Default values give 4px radius.
+            as per pixel.  Default values give 4px radius.
         patch_are : int
             Number of pixels contained in a circular patch. Typical  values 13,49,113
         """
@@ -47,7 +47,7 @@ class PACO:
         self.m_pxscale = px_scale
         self.m_scale = res_scale
         self.m_rescaled = False        
-        self.m_psf_rad = int(psf_rad*px_scale)
+        self.m_psf_rad = int(psf_rad/px_scale)
         if psf is not None:
             self.m_psf = psf
             self.m_pwidth = self.m_psf.shape[0]
@@ -183,7 +183,7 @@ class PACO:
         self.rescaleImageSequence(self.m_scale)
 
         self.m_pxscale = self.m_pxscale/self.m_scale
-        self.m_psf_rad = int(self.m_psf_rad*self.m_pxscale)
+        self.m_psf_rad = int(self.m_psf_rad*self.m_scale)
         if self.m_psf is not None:
             self.m_psf = resizeImage(self.m_psf,self.m_scale)
         self.m_pwidth = self.m_psf.shape[0]
