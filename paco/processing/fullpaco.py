@@ -9,44 +9,10 @@ import matplotlib.pyplot as plt
 import sys
 
 class FullPACO(PACO):
-    def __init__(self,                 
-                 image_stack = None,
-                 angles = None,
-                 psf = None,
-                 patch_size = 49):   
-        """
-        FastPACO Parent Class Constructor
-        Parameters
-        -----------------------------
-        image_stack : arr
-            Array of 2D science frames taken in pupil tracking/ADI mode
-        angles : arr
-            List of differential angles between each frame.
-        psf : arr
-            2D PSF image
-        patch_size : int
-            Number of pixels contained in a circular patch. Typical  values 13,49,113
-        """
-        self.m_im_stack = np.array(image_stack)
-        self.m_nFrames = 0
-        self.m_width = 0
-        self.m_height = 0
-        if image_stack is not None:
-            self.m_nFrames = self.m_im_stack.shape[0]
-            self.m_width = self.m_im_stack.shape[2]
-            self.m_height = self.m_im_stack.shape[1]
-            
-        self.m_angles = angles
-        self.m_psf = psf
-        
-        self.m_p_size = patch_size # Number of pixels in a patch
-        self.m_psf_rad = np.ceil(np.sqrt(patch_size/np.pi)) # width of a patch
-        return
-    
     """
     Algorithm Functions
     """     
-    def PACOCalc(self, phi0s, params, scale = 1, model_name=gaussian2dModel, cpu = 1):
+    def PACOCalc(self, phi0s, cpu = 1):
         """
         PACO_calc
         
@@ -67,38 +33,25 @@ class FullPACO(PACO):
             Number of cores to use for parallel processing. Not yet implemented.
         """  
         npx = len(phi0s)  # Number of pixels in an image
-        dim = int((self.m_width*scale)/2)
-        try:
-            assert npx == int(self.m_width*self.m_height*scale**2)
-        except AssertionError:
-            print("Position grid does not match pixel grid.")
-            sys.exit(1)
-        
+        dim = self.m_width/2
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
         T = len(self.m_im_stack) # Number of temporal frames
-        k = int(2*np.ceil(scale * self.m_psf_rad ) ) # Width of a patch, just for readability
-
-        if self.m_psf is not None:
-            h_template = self.m_psf
-        else:
-            h_template = self.modelFunction(k, model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius = self.m_psf_rad*scale)
-        if self.m_p_size != len(h_mask[h_mask]):
-            self.m_p_size = len(h_mask[h_mask])      
-        h = np.zeros((self.m_nFrames,self.m_p_size)) # The off axis PSF at each point
+        mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        if self.m_p_size != len(mask[mask]):
+            self.m_p_size = len(mask[mask])      
+        h = np.zeros((self.m_nFrames,self.m_psf_area)) # The off axis PSF at each point
         
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
         # 2d selection of pixels around a given point
-        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size))
-        mask =  createCircularMask((k,k),radius = int(self.m_psf_rad*scale))
+        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_psf_area))
 
         # the mean of a temporal column of patches at each pixel
-        m     = np.zeros((self.m_nFrames,self.m_p_size))
+        m     = np.zeros((self.m_nFrames,self.m_psf_area))
         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_nFrames,self.m_p_size,self.m_p_size))
+        Cinv  = np.zeros((self.m_nFrames,self.m_psf_area,self.m_psf_area))
 
 
         print("Running PACO...")
@@ -113,17 +66,14 @@ class FullPACO(PACO):
             #    print(str(i/100) + "%")
                 
             # Get list of pixels for each rotation angle
-            angles_px = getRotatedPixels(x,y,p0,angles)
+            angles_px = getRotatedPixels(x,y,p0,self.angles)
             
             # Iterate over each temporal frame/each angle
             # Same as iterating over phi_l
             for l,ang in enumerate(angles_px):
-                patch[l] = self.getPatch(ang, k, mask) # Get the column of patches at this point
+                patch[l] = self.getPatch(ang, self.m_pwidth, mask) # Get the column of patches at this point
                 m[l],Cinv[l] = pixelCalc(patch[l])
-                if scale!=1:
-                    h[l] = resizeImage(h_template,scale)[h_mask]
-                else:
-                    h[l] = h_template[h_mask]
+                h[l] = self.m_psf[mask]
 
             # Calculate a and b, matrices
             a[i] = self.al(h, Cinv)

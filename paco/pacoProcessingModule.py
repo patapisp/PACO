@@ -114,5 +114,11 @@ class PACOModule(ProcessingModule):
         
         # Output
         snr = b/np.sqrt(a)
+        # Set all creates new data set/overwrites
+        # Try MEMORY keyword -
+        # database dataset (eg images)
+        # Static attributes eg pixel scale
+        # Non-static - stored separately
+        # set_attr() for output port 
         self.m_snr_out_port.set_all(snr, data_dim=2)
         self.m_snr_out_port.close_port()

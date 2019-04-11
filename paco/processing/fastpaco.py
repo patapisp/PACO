@@ -14,48 +14,11 @@ import time
 
 #Pacito
 class FastPACO(PACO):
-    def __init__(self,                 
-                 image_stack = None,
-                 angles = None,
-                 psf = None,
-                 patch_size = 49):   
-        """
-        FastPACO Parent Class Constructor
-        Parameters
-        -----------------------------
-        image_stack : arr
-            Array of 2D science frames taken in pupil tracking/ADI mode
-        angles : arr
-            List of differential angles between each frame.
-        psf : arr
-            2D PSF image
-        patch_size : int
-            Number of pixels contained in a circular patch. Typical  values 13,49,113
-        """
-        self.m_im_stack = np.array(image_stack)
-        self.m_nFrames = 0
-        self.m_width = 0
-        self.m_height = 0
-        if image_stack is not None:
-            self.m_nFrames = self.m_im_stack.shape[0]
-            self.m_width = self.m_im_stack.shape[2]
-            self.m_height = self.m_im_stack.shape[1]
-            
-        self.m_angles = angles
-        self.m_psf = psf
-        
-        self.m_p_size = patch_size # Number of pixels in a patch
-        self.m_psf_rad = np.ceil(np.sqrt(patch_size/np.pi)) # width of a patch
-        return
-
     """
     Algorithm Functions
     """      
     def PACOCalc(self,
                  phi0s,
-                 params,
-                 scale = 1,
-                 model_name=gaussian2dModel,
                  cpu = 1):
         """
         PACO_calc
@@ -77,29 +40,26 @@ class FastPACO(PACO):
             Number of cores to use for parallel processing
         """      
         npx = len(phi0s)  # Number of pixels in an image
-        dim = int((self.m_width*scale)/2)
-        
+        dim = self.m_width/2
         try:
-            assert npx == int(self.m_width*self.m_height*scale**2)
+            assert (dim).is_integer()
         except AssertionError:
-            print("Position grid does not match pixel grid.")
+            print("Image cannot be properly rotated.")
             sys.exit(1)
+        dim = int(dim)
         
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
-        k = int(2*np.ceil(scale * self.m_psf_rad )) # Width of a patch, just for readability
-        
-
         if cpu == 1:
-            Cinv,m,h = self.computeStatistics(phi0s, params, scale = scale, model_name = model_name)
+            Cinv,m,h = self.computeStatistics(phi0s)
         else:
-            Cinv,m,h = self.computeStatisticsParallel(phi0s, params, scale = scale, cpu = cpu, model_name = model_name)
+            Cinv,m,h = self.computeStatisticsParallel(phi0s,cpu = cpu)
 
-            # Create arrays needed for storage
+        # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_p_size)) # 2d selection of pixels around a given point
-        mask =  createCircularMask((k,k),radius = int(self.m_psf_rad*scale))
+        patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_psf_area)) # 2d selection of pixels around a given point
+        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
 
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))    
 
@@ -107,14 +67,12 @@ class FastPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
-            #if(i%(npx/10) == 0):
-            #    print(str(i/100) + "%")
-
             # Get Angles
             angles_px = getRotatedPixels(x,y,p0,self.m_angles)
 
             # Ensure within image bounds
-            if(int(np.max(angles_px.flatten()))>=self.m_width or int(np.min(angles_px.flatten()))<0):
+            if(int(np.max(angles_px.flatten()))>=self.m_width or \
+               int(np.min(angles_px.flatten()))<0):
                 a[i] = np.nan
                 b[i] = np.nan
                 continue
@@ -127,7 +85,7 @@ class FastPACO(PACO):
                 Cinlst.append(Cinv[int(ang[0])][int(ang[1])])
                 mlst.append(m[int(ang[0])][int(ang[1])])
                 hlst.append(h[int(ang[0])][int(ang[1])])
-                patch[l] = self.getPatch(ang, k, mask)
+                patch[l] = self.getPatch(ang, self.m_pwidth, mask)
             Cinv_arr = np.array(Cinlst)
             m_arr   = np.array(mlst)
             hl   = np.array(hlst)
@@ -139,7 +97,7 @@ class FastPACO(PACO):
         print("Done")
         return a,b
 
-    def computeStatistics(self, phi0s, params, scale, model_name):
+    def computeStatistics(self, phi0s):
         """    
         This function computes the mean and inverse covariance matrix for
         each patch in the image stack in Serial.
@@ -150,52 +108,39 @@ class FastPACO(PACO):
         params: dict
             Dictionary of parameters about the psf, containing either the width
             of a gaussian distribution, or a label 'psf_template'
-        scale : float
-            Resolution scaling
         model_name: str
             Name of the template for the off-axis PSF
         """
     
         print("Precomputing Statistics...")
-        npx = len(phi0s)           # Number of pixels in an image      
-        dim = int((self.m_width*scale)/2)
-        k = int(2*np.ceil(scale * self.m_psf_rad)) # Width of a patch, just for readability
-        
-        # Create arrays needed for storage
-        # PSF Template
-        if self.m_psf is not None:
-            h_template = self.m_psf
-        else:
-            h_template = self.modelFunction(k, model_name, params)
-        h_mask = createCircularMask((k,k),radius = int(self.m_psf_rad*scale))
-        if self.m_p_size != len(h_mask[h_mask]):
-            self.m_p_size = len(h_mask[h_mask])
+        npx = len(phi0s)       
+        dim = int(self.m_width/2)
+
+        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        if self.m_psf_area != len(mask[mask]):
+            self.m_psf_area = len(mask[mask])
         # The off axis PSF at each point
-        h = np.zeros((self.m_height,self.m_width,self.m_p_size)) 
+        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_p_size)) # 2d selection of pixels around a given point
-        mask =  createCircularMask((k,k),radius = int(self.m_psf_rad*scale))
+        patch = np.zeros((self.m_nFrames,self.m_psf_area))
 
         # the mean of a temporal column of patches centered at each pixel
-        m     = np.zeros((self.m_height,self.m_width,self.m_p_size)) 
+        m     = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_height,self.m_width,self.m_p_size,self.m_p_size)) 
+        Cinv  = np.zeros((self.m_height,self.m_width,self.m_psf_area,self.m_psf_area)) 
 
         # *** SERIAL ***
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for p0 in phi0s:
-            apatch = self.getPatch(p0,k,mask)
+            apatch = self.getPatch(p0,self.m_pwidth,mask)
             m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = pixelCalc(apatch)           
-            if scale!=1:
-                h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
-            else:
-                h[p0[0]][p0[1]] = h_template[h_mask]
+            h[p0[0]][p0[1]] = self.m_psf[mask]
         return Cinv,m,h
 
-    def computeStatisticsParallel(self, phi0s, params, scale, cpu, model_name):
+    def computeStatisticsParallel(self, phi0s, cpu):
         """    
         This function computes the mean and inverse covariance matrix for
         each patch in the image stack in Serial.
@@ -219,42 +164,28 @@ class FastPACO(PACO):
     
         print("Precomputing Statistics using %d Processes...",cpu)
         npx = len(phi0s)           # Number of pixels in an image      
-        dim = int((self.m_width*scale)/2)
-        k = int(2*np.ceil(scale * self.m_psf_rad ) + 2) # Width of a patch, just for readability
-        
-        # Create arrays needed for storage
-        # PSF Template
-        if self.m_psf is not None:
-            h_template = self.m_psf
-        else:
-            h_template = self.modelFunction(k, model_name, params)
-        h_mask = createCircularMask(h_template.shape,radius =int( self.m_psf_rad*scale))
-        if self.m_p_size != len(h_mask[h_mask]):
-            self.m_p_size = len(h_mask[h_mask])
-        h = np.zeros((self.m_height,self.m_width,self.m_p_size)) # The off axis PSF at each point
+        dim = int(self.m_width/2)
+        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        if self.m_psf_area != len(mask[mask]):
+            self.m_psf_area = len(mask[mask])
+        # The off axis PSF at each point
+        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
-        patches = []
-        patch = np.zeros((self.m_nFrames,self.m_p_size)) # 2d selection of pixels around a given point
-        mask =  createCircularMask((k,k),radius = self.m_psf_rad)
-                
+        patch = np.zeros((self.m_nFrames,self.m_psf_area))           
         # the mean of a temporal column of patches at each pixel
-        m     = np.zeros((self.m_height*self.m_width*self.m_p_size)) 
+        m     = np.zeros((self.m_height*self.m_width*self.m_psf_area)) 
         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_height*self.m_width*self.m_p_size*self.m_p_size)) 
+        Cinv  = np.zeros((self.m_height*self.m_width*self.m_psf_area*self.m_psf_area)) 
         for p0 in phi0s:
-            if scale!=1:
-                h[p0[0]][p0[1]] = resizeImage(h_template,scale)[h_mask]
-            else:
-                h[p0[0]][p0[1]] = h_template[h_mask]
-
+            h[p0[0]][p0[1]] = self.m_psf[mask]
                 
         # *** Parallel Processing ***
         #start = time.time()
         arglist = [np.copy(np.array(self.getPatch(p0, k, mask))) for p0 in phi0s]
         p = Pool(processes = cpu)
-        data = p.map(pixelCalc, arglist, chunksize = int(npx/16))
+        data = p.map(pixelCalc, arglist, chunksize = int(npx/cpu))
         p.close()
         p.join()
         ms,cs = [],[]
@@ -263,8 +194,8 @@ class FastPACO(PACO):
             cs.append(d[1])
         ms = np.array(ms)
         cs = np.array(cs)  
-        m = ms.reshape((self.m_height,self.m_width,self.m_p_size))
-        Cinv = cs.reshape((self.m_height,self.m_width,self.m_p_size,self.m_p_size))
+        m = ms.reshape((self.m_height,self.m_width,self.m_psf_area))
+        Cinv = cs.reshape((self.m_height,self.m_width,self.m_psf_area,self.m_psf_area))
         #end = time.time()
         #print("Parallel elapsed",end-start)
         return Cinv,m,h

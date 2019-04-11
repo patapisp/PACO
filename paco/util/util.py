@@ -40,7 +40,7 @@ def getRotatedPixels(x,y,p0,angles):
         List of angles for which to compute the new pixel location
     """
     # Current pixel
-    phi0 = np.array([x[p0[0], p0[1]], y[p0[0], p0[1]]])
+    phi0 = np.array([x[int(p0[0]), int(p0[1])], y[int(p0[0]), int(p0[1])]])
     # Convert to polar coordinates
     rphi0 = cartToPol(phi0)
     angles_rad = rphi0[1] - np.array([a*np.pi/180 for a in angles]) 
@@ -79,11 +79,14 @@ def createCircularMask(shape, radius=4, center=None):
         return mask
 # Rescale an image in both directions by scaleFactor 
 def resizeImage(image, scaleFactor):
+    if scaleFactor == 1:
+        return image
     return cv2.resize(image,(0,0), fx = scaleFactor, fy = scaleFactor, interpolation = cv2.INTER_NEAREST)
 
 # A 2D gaussian over range x,y with amplitude A and width sigma
 def gaussian2d(x,y,A, sigma):
     return A*np.exp(-(x**2+y**2)/(2*sigma**2))
+
 # Model function to create a PSF template
 def gaussian2dModel(n,params):
     sigma = params["sigma"]
