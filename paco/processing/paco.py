@@ -357,8 +357,8 @@ class PACO:
         """
         data_max = filters.maximum_filter(snr_map,size = self.m_psf_rad)
         maxima = (snr_map == data_max)
-        data_min = filters.minimum_filter(snr_map,self.m_psf_rad)
-        diff = ((data_max - data_min) > threshold)
+        #data_min = filters.minimum_filter(snr_map,self.m_psf_rad)
+        diff = (data_max  > threshold)
         maxima[diff == 0] = 0
         
         labeled, num_objects = ndimage.label(maxima)
