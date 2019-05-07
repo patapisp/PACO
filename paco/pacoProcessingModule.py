@@ -36,14 +36,30 @@ class PACOModule(ProcessingModule):
         snr_out_tag : str
             Tag of the database entry that contains the SNR map and unbiased flux estimation
             computed using one of the PACO algorithms
-        patch_size : int
-            Number of pixels in a circular patch in which the patch covariance is computed
+        psf_model : method
+            (deprecated) If psf_in_tag is not used, this should be a function that produces a 2D psf model, 
+            eg gaussian2dModel
+        angles : arr
+            List of parallactic angles beteen frames
+        psf_rad : int
+            Width of psf, possibly chosen to be the FWHM in arcsec.
+        patch_size : 
+            (deprecated) Number of pixels in circular patch.
+        scaling : float
+            Resolution scaling for PACO SNR map
         algorithm : str
             One of 'fastpaco' or 'fullpaco', depending on which PACO algorithm is to be run
         flux_calc : bool
             True if  fluxpaco is to be run, computing the unbiased flux estimation of 
             a set of companions.
-
+        psf_params : 
+            (deprecated) If a model function is used, these are the dictionary of parameters passed to the function
+        cpu_limit : int
+            Maximum number of processes to run/cores to use.
+        threshold : float
+            Detection threshold in sigma
+        flux_prec : float
+            If fluxpaco is used, precision to which the flux estimation is computed.
         """
         super(PACOModule,self).__init__(name_in)
         self.m_image_in_port = self.add_input_port(image_in_tag)
@@ -62,9 +78,10 @@ class PACOModule(ProcessingModule):
         self.m_scale = scaling
         self.m_psf_params = psf_params
         self.m_cpu_lim = cpu_limit
-        self.m_model_function = psf_odel
+        self.m_model_function = psf_model
         self.m_eps = flux_prec
         self.m_threshold = threshold
+        
     def run(self):
         """
         Run function for PACO
@@ -95,7 +112,7 @@ class PACOModule(ProcessingModule):
             fp = paco.processing.fastpaco.FastPACO(image_stack = images,
                                                    angles = angles,
                                                    psf = psf,
-                                                   psf_rad = self.m_psf_rad
+                                                   psf_rad = self.m_psf_rad,
                                                    px_scale = self.m_px_scale,
                                                    res_scale = self.m_scale,
                                                    patch_area = self.m_patch_size)
@@ -103,7 +120,7 @@ class PACOModule(ProcessingModule):
             fp = paco.processing.fullpaco.FullPACO(image_stack = images,
                                                    angles = angles,
                                                    psf = psf,
-                                                   psf_rad = psf_rad
+                                                   psf_rad = psf_rad,
                                                    px_scale = px_scale,
                                                    res_scale = self.m_scale,
                                                    patch_area = self.m_patch_size)

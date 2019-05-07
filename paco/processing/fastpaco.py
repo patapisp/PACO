@@ -7,10 +7,12 @@ accuracy.
 from paco.util.util import *
 from .paco import PACO
 from multiprocessing import Pool
+#import torch as th
 
 import matplotlib.pyplot as plt
 import sys,os
 import time
+#import pytorch
 
 #Pacito
 class FastPACO(PACO):
@@ -140,7 +142,67 @@ class FastPACO(PACO):
             h[p0[0]][p0[1]] = self.m_psf[mask]
         return Cinv,m,h
 
-    def computeStatisticsParallel(self, phi0s, cpu):
+    def computeStatisticsGPU(self, phi0s, cpu):
+        """    
+        This function computes the mean and inverse covariance matrix for
+        each patch in the image stack in Serial.
+        Parameters
+        ---------------
+        phi0s : int arr
+            Array of pixel locations to estimate companion position
+        params: dict
+            Dictionary of parameters about the psf, containing either the width
+            of a gaussian distribution, or a label 'psf_template'
+        scale : float
+            Resolution scaling
+        model_name: str
+            Name of the template for the off-axis PSF
+        cpu : int
+            Number of processors to use
+            
+        NOTES:
+        This function currently seems slower than computing in serial...
+        """
+    
+        print("Precomputing Statistics using %d Processes...",cpu)
+        npx = len(phi0s)           # Number of pixels in an image      
+        dim = int(self.m_width/2)
+        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        if self.m_psf_area != len(mask[mask]):
+            self.m_psf_area = len(mask[mask])
+        # The off axis PSF at each point
+        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
+
+        # Store for each image pixel, for each temporal frame an image
+        # for patches: for each time, we need to store a column of patches
+        patch = np.zeros((self.m_nFrames,self.m_psf_area))           
+        # the mean of a temporal column of patches at each pixel
+        m     = np.zeros((self.m_height*self.m_width*self.m_psf_area)) 
+        # the inverse covariance matrix at each point
+        Cinv  = np.zeros((self.m_height*self.m_width*self.m_psf_area*self.m_psf_area)) 
+        for p0 in phi0s:
+            h[p0[0]][p0[1]] = self.m_psf[mask]
+                
+        # *** Parallel Processing ***
+        #start = time.time()
+        arglist = [np.copy(np.array(self.getPatch(p0, k, mask))) for p0 in phi0s]
+        p = Pool(processes = cpu)
+        data = p.map(pixelCalc, arglist, chunksize = int(npx/cpu))
+        p.close()
+        p.join()
+        ms,cs = [],[]
+        for d in data:
+            ms.append(d[0])
+            cs.append(d[1])
+        ms = np.array(ms)
+        cs = np.array(cs)  
+        m = ms.reshape((self.m_height,self.m_width,self.m_psf_area))
+        Cinv = cs.reshape((self.m_height,self.m_width,self.m_psf_area,self.m_psf_area))
+        #end = time.time()
+        #print("Parallel elapsed",end-start)
+        return Cinv,m,h
+
+    def computeStatisticsGPU(self, phi0s, cpu):
         """    
         This function computes the mean and inverse covariance matrix for
         each patch in the image stack in Serial.

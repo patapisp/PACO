@@ -171,12 +171,12 @@ class PACO:
             return
 
         try:
-            assert (self.m_width*self.m_scale).is_integer()
+            assert (self.m_width*self.m_scale*1.0).is_integer()
         except AssertionError:
             print("Cannot rescale image, please change the scale or use the full image")
             sys.exit(2)
         try:
-            assert (self.m_height*self.m_scale).is_integer()
+            assert (self.m_height*self.m_scale*1.0).is_integer()
         except AssertionError:
             print("Cannot rescale image, please change the scale or use the full image")
             sys.exit(2)           
