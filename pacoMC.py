@@ -1,3 +1,8 @@
+import os
+os.environ["MKL_NUM_THREADS"] = "1" 
+os.environ["NUMEXPR_NUM_THREADS"] = "1" 
+os.environ["OMP_NUM_THREADS"] = "1" 
+
 import paco.processing.paco as p
 import paco.processing.fullpaco as f_paco
 import paco.processing.fastpaco as fastPACO
@@ -7,9 +12,7 @@ import cv2 as cv2
 from astropy.convolution import convolve, Gaussian2DKernel, AiryDisk2DKernel
 from astropy.modeling.models import Gaussian2D
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm 
-
+import pandas as pd
 from multiprocessing import Pool
 
 # MC Parameters
@@ -17,7 +20,7 @@ nFrames = 5
 angle = 60
 angles = np.linspace(0,angle,nFrames)
 psig = [(30,30)]
-nTrials = 5
+nTrials = 2
 nProcess = min(nTrials,8)
 np.random.seed(4096)
 
@@ -51,7 +54,7 @@ def pacoTrial(im_stack):
     fp = fastPACO.FastPACO(image_stack = im_stack,
                            angles = angles)
 
-    a,b = fp.PACO(cpu = 1,
+    a,b = fp.PACO(cpu = 2,
                   model_params={"sigma":2.0},
                   model_name = gaussian2dModel)
     est = fp.fluxEstimate(phi0s = psig,
@@ -68,8 +71,6 @@ pool = Pool(processes = nProcess)
 data = pool.map(pacoTrial,trials)
 pool.close()
 pool.join()
-
-print(data[0])
 alist,blist,flux = [],[],[]
 for d in data:
     alist.append(d[0])
@@ -77,7 +78,10 @@ for d in data:
     flux.append(d[2])
 alist = np.array(alist)
 blist = np.array(blist)
-flux = np.array(flux)
+print(flux)
+flux = np.array(flux).flatten()
+np.save("output/a_mc.npy",alist)
+np.save("output/b_mc.npy",blist)
 
 var = []
 peak = []
@@ -86,7 +90,6 @@ sig = []
 var_full = []
 #Should do this with numpy slicing...
 for i in range(nTrials):
-    print(blist[i][30][30],alist[i][30][30])
     var.append(alist[i][30][30])
     peak.append(blist[i][30][30]/ alist[i][30][30])
     snr.append(blist[i][30][30]/ np.sqrt(alist[i][30][30]))
@@ -97,5 +100,10 @@ peak = np.array(peak)
 snr = np.array(snr)
 var_full = np.array(var_full)
 
-print(peak)
-print(np.var(peak),np.mean(var))
+df = pd.DataFrame()
+df['flux'] = flux
+df['peak_flux'] = peak
+df['peak_var'] = var
+df['frame_var'] = var_full
+
+df.to_csv('output/mc_stats.csv')

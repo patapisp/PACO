@@ -142,7 +142,7 @@ class FastPACO(PACO):
             h[p0[0]][p0[1]] = self.m_psf[mask]
         return Cinv,m,h
 
-    def computeStatisticsGPU(self, phi0s, cpu):
+    def computeStatisticsParallel(self, phi0s, cpu):
         """    
         This function computes the mean and inverse covariance matrix for
         each patch in the image stack in Serial.
@@ -164,40 +164,32 @@ class FastPACO(PACO):
         This function currently seems slower than computing in serial...
         """
     
-        print("Precomputing Statistics using %d Processes...",cpu)
+        print("Precomputing Statistics using {} Processes...".format(cpu))
         npx = len(phi0s)           # Number of pixels in an image      
         dim = int(self.m_width/2)
         mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
         if self.m_psf_area != len(mask[mask]):
             self.m_psf_area = len(mask[mask])
         # The off axis PSF at each point
-        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
-
-        # Store for each image pixel, for each temporal frame an image
-        # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_psf_area))           
-        # the mean of a temporal column of patches at each pixel
-        m     = np.zeros((self.m_height*self.m_width*self.m_psf_area)) 
-        # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_height*self.m_width*self.m_psf_area*self.m_psf_area)) 
+        h = np.zeros((self.m_height,self.m_width,self.m_psf_area))          
         for p0 in phi0s:
             h[p0[0]][p0[1]] = self.m_psf[mask]
                 
         # *** Parallel Processing ***
         #start = time.time()
-        arglist = [np.copy(np.array(self.getPatch(p0, k, mask))) for p0 in phi0s]
+        arglist = [self.getPatch(p0, self.m_pwidth, mask) for p0 in phi0s]
         p = Pool(processes = cpu)
         data = p.map(pixelCalc, arglist, chunksize = int(npx/cpu))
         p.close()
         p.join()
-        ms,cs = [],[]
+        m,Cinv = [],[]
         for d in data:
-            ms.append(d[0])
-            cs.append(d[1])
-        ms = np.array(ms)
-        cs = np.array(cs)  
-        m = ms.reshape((self.m_height,self.m_width,self.m_psf_area))
-        Cinv = cs.reshape((self.m_height,self.m_width,self.m_psf_area,self.m_psf_area))
+            m.append(d[0])
+            Cinv.append(d[1])
+        m = np.array(m)
+        Cinv = np.array(Cinv)
+        m = m.reshape((self.m_height,self.m_width,self.m_psf_area))
+        Cinv = Cinv.reshape((self.m_height,self.m_width,self.m_psf_area,self.m_psf_area))
         #end = time.time()
         #print("Parallel elapsed",end-start)
         return Cinv,m,h
@@ -224,18 +216,14 @@ class FastPACO(PACO):
         This function currently seems slower than computing in serial...
         """
     
-        print("Precomputing Statistics using %d Processes...",cpu)
+        print("Precomputing Statistics using {cpu} Processes...")
         npx = len(phi0s)           # Number of pixels in an image      
         dim = int(self.m_width/2)
         mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
         if self.m_psf_area != len(mask[mask]):
             self.m_psf_area = len(mask[mask])
         # The off axis PSF at each point
-        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
-
-        # Store for each image pixel, for each temporal frame an image
-        # for patches: for each time, we need to store a column of patches
-        patch = np.zeros((self.m_nFrames,self.m_psf_area))           
+        h = np.zeros((self.m_height,self.m_width,self.m_psf_area))       
         # the mean of a temporal column of patches at each pixel
         m     = np.zeros((self.m_height*self.m_width*self.m_psf_area)) 
         # the inverse covariance matrix at each point
@@ -245,7 +233,7 @@ class FastPACO(PACO):
                 
         # *** Parallel Processing ***
         #start = time.time()
-        arglist = [np.copy(np.array(self.getPatch(p0, k, mask))) for p0 in phi0s]
+        arglist = [np.copy(self.getPatch(p0, k, mask)) for p0 in phi0s]
         p = Pool(processes = cpu)
         data = p.map(pixelCalc, arglist, chunksize = int(npx/cpu))
         p.close()
