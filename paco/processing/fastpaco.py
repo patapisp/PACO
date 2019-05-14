@@ -86,7 +86,7 @@ class FastPACO(PACO):
             for l,ang in enumerate(angles_px):
                 Cinlst.append(Cinv[int(ang[0])][int(ang[1])])
                 mlst.append(m[int(ang[0])][int(ang[1])])
-                hlst.append(h[int(ang[0])][int(ang[1])])
+                hlst.append(h[int(ang[0])][int(ang[1])])#self.m_im_stack[l][45:56,45:56][mask])#
                 patch[l] = self.getPatch(ang, self.m_pwidth, mask)
             Cinv_arr = np.array(Cinlst)
             m_arr   = np.array(mlst)
