@@ -95,7 +95,7 @@ class PACOModule(ProcessingModule):
             fp = paco.processing.fastpaco.FastPACO(image_stack = images,
                                                    angles = angles,
                                                    psf = psf,
-                                                   psf_rad = self.m_psf_rad
+                                                   psf_rad = self.m_psf_rad,
                                                    px_scale = self.m_px_scale,
                                                    res_scale = self.m_scale,
                                                    patch_area = self.m_patch_size)
@@ -103,7 +103,7 @@ class PACOModule(ProcessingModule):
             fp = paco.processing.fullpaco.FullPACO(image_stack = images,
                                                    angles = angles,
                                                    psf = psf,
-                                                   psf_rad = psf_rad
+                                                   psf_rad = psf_rad,
                                                    px_scale = px_scale,
                                                    res_scale = self.m_scale,
                                                    patch_area = self.m_patch_size)
