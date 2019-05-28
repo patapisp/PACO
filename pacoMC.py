@@ -16,12 +16,12 @@ import multiprocessing
 import multiprocessing.pool
 
 # MC Parameters
-nFrames = 5
+nFrames = 150
 angle = 60
 angles = np.linspace(0,angle,nFrames)
 psig = [(30,30)]
-nTrials = 2
-nProcess = min(nTrials,8)
+nTrials = 50
+nProcess = min(nTrials,4)
 np.random.seed(4096)
 
 OUTPUT_DIR = "output/MC_V1/"
