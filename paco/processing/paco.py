@@ -55,7 +55,7 @@ class PACO:
             self.m_psf_area = len(mask[mask])
         else:
             self.m_psf = psf
-            self.m_pwidth = 2*int(psf_rad*px_scale)
+            self.m_pwidth = 2*int(psf_rad*px_scale)+2
             self.m_psf_area = patch_area
         return
 

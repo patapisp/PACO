@@ -117,10 +117,10 @@ class FastPACO(PACO):
         print("Precomputing Statistics...")
         npx = len(phi0s)       
         dim = int(self.m_width/2)
-
         mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
         if self.m_psf_area != len(mask[mask]):
             self.m_psf_area = len(mask[mask])
+
         # The off axis PSF at each point
         h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
 

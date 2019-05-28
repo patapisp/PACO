@@ -9,11 +9,11 @@ import paco.processing.fastpaco as fastPACO
 
 from paco.util.util import *
 import cv2 as cv2
-from astropy.convolution import convolve, Gaussian2DKernel, AiryDisk2DKernel
-from astropy.modeling.models import Gaussian2D
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
+
+import multiprocessing
+import multiprocessing.pool
 
 # MC Parameters
 nFrames = 5
@@ -24,6 +24,7 @@ nTrials = 2
 nProcess = min(nTrials,8)
 np.random.seed(4096)
 
+OUTPUT_DIR = "output/MC_V1/"
 def GenerateImageStack(nFrames,angles,signalStrength,noiseLevel,dim = 100):  
     # Hardcoded source location
     p0 = (30,30)
@@ -54,12 +55,13 @@ def pacoTrial(im_stack):
     fp = fastPACO.FastPACO(image_stack = im_stack,
                            angles = angles)
 
-    a,b = fp.PACO(cpu = 2,
+    a,b = fp.PACO(cpu = 1,
                   model_params={"sigma":2.0},
                   model_name = gaussian2dModel)
     est = fp.fluxEstimate(phi0s = psig,
                           eps = 0.05,
                           initial_est = 0.0)
+    
     return (a,b,est)
 
 
@@ -67,7 +69,7 @@ trials = [GenerateImageStack(nFrames,angles,5.0,1.0) for i in range(nTrials)]
 
 #for t in trials:
 #    print(t[0])
-pool = Pool(processes = nProcess)
+pool = multiprocessing.Pool(nProcess)
 data = pool.map(pacoTrial,trials)
 pool.close()
 pool.join()
@@ -80,8 +82,11 @@ alist = np.array(alist)
 blist = np.array(blist)
 print(flux)
 flux = np.array(flux).flatten()
-np.save("output/a_mc.npy",alist)
-np.save("output/b_mc.npy",blist)
+if(not os.path.isdir(os.getcwd() + '/' +OUTPUT_DIR)):
+    os.mkdir(os.getcwd() + '/' +OUTPUT_DIR)
+np.save(OUTPUT_DIR + "a_mc.npy",alist)
+np.save(OUTPUT_DIR + "b_mc.npy",blist)
+np.save(OUTPUT_DIR + "est_mc.npy",flux)
 
 var = []
 peak = []
@@ -106,4 +111,4 @@ df['peak_flux'] = peak
 df['peak_var'] = var
 df['frame_var'] = var_full
 
-df.to_csv('output/mc_stats.csv')
+df.to_csv(OUTPUT_DIR + "mc_stats.csv")
