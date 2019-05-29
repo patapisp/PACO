@@ -24,7 +24,7 @@ nTrials = 50
 nProcess = min(nTrials,4)
 np.random.seed(4096)
 
-OUTPUT_DIR = "output/MC_V1/"
+OUTPUT_DIR = "output/MC_V2/"
 def GenerateImageStack(nFrames,angles,signalStrength,noiseLevel,dim = 100):  
     # Hardcoded source location
     p0 = (30,30)
@@ -33,7 +33,7 @@ def GenerateImageStack(nFrames,angles,signalStrength,noiseLevel,dim = 100):
     images = [np.reshape(np.random.normal(mean, noiseLevel, dim**2), (dim,dim)) for j in range(nFrames)]
     X,Y = np.meshgrid(np.arange(-dim/2, dim/2),np.arange(-dim/2, dim))
     xx, yy = np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
-    s = gaussian2d(xx,yy,signalStrength/np.sqrt(nFrames), 2)
+    s = gaussian2d(xx,yy,signalStrength/nFrames, 2)
 
     #images_signal = [i + s for i in images]
     rot_noise = np.array([rotateImage(images[j], angles[j]) for j in range(nFrames)])
