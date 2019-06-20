@@ -6,22 +6,34 @@ os.environ["OMP_NUM_THREADS"] = "1"
 import paco.processing.paco as p
 import paco.processing.fullpaco as f_paco
 import paco.processing.fastpaco as fastPACO
-
+import argparse as ap
 from paco.util.util import *
 import cv2 as cv2
 import numpy as np
 import pandas as pd
-
+import sys
 import multiprocessing
 import multiprocessing.pool
 
-# MC Parameters
+parser = ap.ArgumentParser(description = 'Set the MC parameters to validate PACO.')
+parser.add_argument('n_frames', metavar = 'N', type = int, help = 'Number of frames in image stack.')
+parser.add_argument('rotation_angle', metavar = 'A', type = float, help = 'Angle of rotation through image stack.')
+parser.add_argument('n_trials', metavar = 'T', type = int, help = 'Number of repeated trials to build statistics.')
+args = parser.parse_args()
+# MC Parameters  
 nFrames = 150
 angle = 60
+nTrials = 50
+if args.n_frames is not None:
+    nFrames = args.n_frames
+if args.rotation_angle is not None:
+    angle = args.rotation_angle
+if args.n_trials is not None:
+    nTrials = args.n_trials
 angles = np.linspace(0,angle,nFrames)
 psig = [(30,30)]
-nTrials = 50
-nProcess = min(nTrials,4)
+
+nProcess = min(nTrials,8)
 np.random.seed(4096)
 
 OUTPUT_DIR = "output/MC_V2/"
