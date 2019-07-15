@@ -36,7 +36,7 @@ psig = [(30,30)]
 nProcess = min(nTrials,8)
 np.random.seed(4096)
 
-OUTPUT_DIR = "output/MC_V2/"
+OUTPUT_DIR = "output/MC_V3/"
 def GenerateImageStack(nFrames,angles,signalStrength,noiseLevel,dim = 100):  
     # Hardcoded source location
     p0 = (30,30)
