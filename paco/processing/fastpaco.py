@@ -41,12 +41,6 @@ class FastPACO(PACO):
         """      
         npx = len(phi0s)  # Number of pixels in an image
         dim = self.m_width/2
-        try:
-            assert (dim).is_integer()
-        except AssertionError:
-            print("Image cannot be properly rotated.")
-            sys.exit(1)
-        dim = int(dim)
         
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
@@ -61,6 +55,7 @@ class FastPACO(PACO):
         patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_psf_area)) # 2d selection of pixels around a given point
         mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
 
+        # Currently forcing integer grid, but meshgrid takes floats as arguments...
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))    
 
         print("Running PACO...")

@@ -49,8 +49,13 @@ class PACO:
         self.m_rescaled = False        
         self.m_psf_rad = int(psf_rad/px_scale)
         if psf is not None:
+            # How do we want to deal with stacks of psfs? Median? Just take the first one?
+            if len(psf.shape)>2:
+                psf = psf[0]
             self.m_psf = psf
+            print(self.m_psf.shape)
             self.m_pwidth = self.m_psf.shape[0]
+            print("here here here",self.m_pwidth)
             mask = createCircularMask(self.m_psf.shape,self.m_psf_rad)
             self.m_psf_area = len(mask[mask])
         else:
@@ -79,6 +84,12 @@ class PACO:
         """
         if self.m_psf is None:
             self.modelFunction(self.m_pwidth,model_name, model_params)
+        if ((self.m_width * self.m_scale)%2 != 0):
+            # This ensures that we're dealing with an even number of pixels.
+            # Necessary so that we can evenly divide and rotate about the center. Shouldn't be necessary?
+            self.m_im_stack = self.m_im_stack[0:self.m_nFrames,0:self.m_width -1,0:self.m_height-1]
+            self.m_width -= 1
+            self.m_height -= 1
         if not self.m_rescaled:
             self.rescaleAll()
         # Setup pixel coordinates
@@ -149,15 +160,16 @@ class PACO:
             k2 = k+1
         else:
             k2 = k
-        
         nx, ny = np.shape(self.m_im_stack[0])[:2]
         if px[0]+k2 > nx or px[0]-k< 0 or px[1]+k2 > ny or px[1]-k < 0:
             #print("pixel out of range")
             return None
         if mask is not None:
-            patch = np.array([self.m_im_stack[i][int(px[0])-k:int(px[0])+k2, int(px[1])-k:int(px[1])+k2][mask] for i in range(len(self.m_im_stack))])
+            patch = np.array([self.m_im_stack[i][int(px[0])-k:int(px[0])+k2,
+                                                 int(px[1])-k:int(px[1])+k2][mask] for i in range(len(self.m_im_stack))])
         else:
-            patch = np.array([self.m_im_stack[i][int(px[0])-k:int(px[0])+k2, int(px[1])-k:int(px[1])+k2] for i in range(len(self.m_im_stack))])
+            patch = np.array([self.m_im_stack[i][int(px[0])-k:int(px[0])+k2,
+                                                 int(px[1])-k:int(px[1])+k2] for i in range(len(self.m_im_stack))])
         return patch
 
 
@@ -291,7 +303,7 @@ class PACO:
         x,y = np.meshgrid(np.arange(0,int(self.m_height)),
                           np.arange(0,int(self.m_width)))
         ests = []
-        for p0 in phi0s:
+        for i,p0 in enumerate(phi0s):
             angles_px = getRotatedPixels(x,y,p0,self.m_angles)
 
             # Fill patches and signal template
@@ -305,7 +317,10 @@ class PACO:
             Cinv  = np.zeros((self.m_nFrames,self.m_psf_area,self.m_psf_area))
             
             # Unbiased flux estimation
-            ahat = initial_est
+            if isinstance(initial_est, list):
+                ahat = initial_est[i]
+            else:
+                ahat = initial_est
             aprev = 999999.0 # Arbitrary large value so that the loop will run   
             while (np.abs(ahat - aprev) > (ahat * eps)):
                 a = 0.0

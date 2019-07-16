@@ -9,6 +9,7 @@ class PACOModule(ProcessingModule):
                  image_in_tag = "im_arr",
                  psf_in_tag = None,
                  snr_out_tag = "paco_snr",
+                 flux_out_tag = "paco_flux",
                  psf_model = None,
                  angles = None,
                  psf_rad = 4,
@@ -55,14 +56,17 @@ class PACOModule(ProcessingModule):
         else:
             self.m_psf_in_port = None
         self.m_snr_out_port = self.add_output_port(snr_out_tag)
+        self.m_flux_out_port = self.add_output_port(flux_out_tag)
+
         self.m_algorithm = algorithm
         self.m_patch_size = patch_size
         self.m_angles = angles
         self.m_flux_calc = flux_calc
         self.m_scale = scaling
         self.m_psf_params = psf_params
+        self.m_psf_rad = psf_rad
         self.m_cpu_lim = cpu_limit
-        self.m_model_function = psf_odel
+        self.m_model_function = psf_model
         self.m_eps = flux_prec
         self.m_threshold = threshold
     def run(self):
@@ -96,7 +100,7 @@ class PACOModule(ProcessingModule):
                                                    angles = angles,
                                                    psf = psf,
                                                    psf_rad = self.m_psf_rad,
-                                                   px_scale = self.m_px_scale,
+                                                   px_scale = px_scale,
                                                    res_scale = self.m_scale,
                                                    patch_area = self.m_patch_size)
         elif self.m_algorithm == "fullpaco":
@@ -122,8 +126,8 @@ class PACOModule(ProcessingModule):
         # Iterative, unbiased flux estimation
         if self.m_flux_calc:
             phi0s = fp.thresholdDetection(snr,self.m_threshold)
-            est = 0.0
-            fp.fluxEstimate(phi0s,self.m_eps,est)
+            init = b[phi0s]
+            ests =  fp.fluxEstimate(phi0s,self.m_eps,init)
         
         # Output
         
@@ -134,4 +138,6 @@ class PACOModule(ProcessingModule):
         # Non-static - stored separately
         # set_attr() for output port 
         self.m_snr_out_port.set_all(snr, data_dim=2)
+        self.m_snr_out_port.close_port()
+        self.m_flux_out_port.set_all(ests, data_dim=1)
         self.m_snr_out_port.close_port()
