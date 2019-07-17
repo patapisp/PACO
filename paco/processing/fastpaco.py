@@ -53,7 +53,8 @@ class FastPACO(PACO):
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
         patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_psf_area)) # 2d selection of pixels around a given point
-        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        mask =  createCircularMask((self.m_pwidth,self.m_pwidth),radius = self.m_psf_rad)
+        psf_mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
 
         # Currently forcing integer grid, but meshgrid takes floats as arguments...
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))    
@@ -90,6 +91,8 @@ class FastPACO(PACO):
             a[i] = self.al(hlst, Cinlst)
             b[i] = self.bl(hlst, Cinlst, patch, mlst)
         print("Done")
+        print(a)
+        print(b)
         return a,b
 
     def computeStatistics(self, phi0s):
@@ -111,11 +114,12 @@ class FastPACO(PACO):
         npx = len(phi0s)       
         dim = int(self.m_width/2)
 
-        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
-        if self.m_psf_area != len(mask[mask]):
-            self.m_psf_area = len(mask[mask])
+        mask =  createCircularMask((self.m_pwidth,self.m_pwidth),radius = self.m_psf_rad)
+        psf_mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
+        #if self.m_psf_area != len(mask[mask]):
+        #    self.m_psf_area = len(mask[mask])
         # The off axis PSF at each point
-        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
+        h = np.zeros((self.m_psf.shape[0],self.m_psf.shape[1],self.m_psf_area)) 
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
@@ -131,8 +135,10 @@ class FastPACO(PACO):
         # i is the same as theta_k in the PACO paper
         for p0 in phi0s:
             apatch = self.getPatch(p0,self.m_pwidth,mask)
+            #if apatch is not None:
+            #    print(self.m_psf_area,self.m_psf_rad,apatch.shape,h.shape,m.shape,Cinv.shape)
             m[p0[0]][p0[1]],Cinv[p0[0]][p0[1]] = pixelCalc(apatch)           
-            h[p0[0]][p0[1]] = self.m_psf[mask]
+            h[p0[0]][p0[1]] = self.m_psf[psf_mask]
         return Cinv,m,h
 
     def computeStatisticsParallel(self, phi0s, cpu):
@@ -160,11 +166,10 @@ class FastPACO(PACO):
         print("Precomputing Statistics using %d Processes...",cpu)
         npx = len(phi0s)           # Number of pixels in an image      
         dim = int(self.m_width/2)
-        mask =  createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
-        if self.m_psf_area != len(mask[mask]):
-            self.m_psf_area = len(mask[mask])
+        mask =  createCircularMask((self.m_pwidth,self.m_pwidth),radius = self.m_psf_rad)
+        psf_mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
         # The off axis PSF at each point
-        h = np.zeros((self.m_height,self.m_width,self.m_psf_area)) 
+        h = np.zeros((self.m_psf.shape[0],self.m_psf.shape[1],self.m_psf_area)) 
 
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
@@ -174,7 +179,7 @@ class FastPACO(PACO):
         # the inverse covariance matrix at each point
         Cinv  = np.zeros((self.m_height*self.m_width*self.m_psf_area*self.m_psf_area)) 
         for p0 in phi0s:
-            h[p0[0]][p0[1]] = self.m_psf[mask]
+            h[p0[0]][p0[1]] = self.m_psf[psf_mask]
                 
         # *** Parallel Processing ***
         #start = time.time()

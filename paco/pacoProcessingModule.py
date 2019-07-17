@@ -16,11 +16,12 @@ class PACOModule(ProcessingModule):
                  patch_size = 49,
                  scaling = 1.0,
                  algorithm = "fastpaco",
-                 flux_calc = False,
+                 flux_calc = True,
                  psf_params = None,
                  cpu_limit = 1,
                  threshold = 5.0,
-                 flux_prec = 0.05
+                 flux_prec = 0.05,
+                 verbose = False
     ):
         """
         Constructor of PACOModule.
@@ -56,8 +57,12 @@ class PACOModule(ProcessingModule):
         else:
             self.m_psf_in_port = None
         self.m_snr_out_port = self.add_output_port(snr_out_tag)
-        self.m_flux_out_port = self.add_output_port(flux_out_tag)
+        if flux_calc:
+            self.m_flux_out_port = self.add_output_port(flux_out_tag)
+            self.m_source_flux_out_port = self.add_output_port("source_" + flux_out_tag)
+            self.m_source_posn_out_port = self.add_output_port("posn_" + flux_out_tag)
 
+            
         self.m_algorithm = algorithm
         self.m_patch_size = patch_size
         self.m_angles = angles
@@ -69,6 +74,7 @@ class PACOModule(ProcessingModule):
         self.m_model_function = psf_model
         self.m_eps = flux_prec
         self.m_threshold = threshold
+        self.m_verbose = verbose
     def run(self):
         """
         Run function for PACO
@@ -102,7 +108,8 @@ class PACOModule(ProcessingModule):
                                                    psf_rad = self.m_psf_rad,
                                                    px_scale = px_scale,
                                                    res_scale = self.m_scale,
-                                                   patch_area = self.m_patch_size)
+                                                   patch_area = self.m_patch_size,
+                                                   verbose = self.m_verbose)
         elif self.m_algorithm == "fullpaco":
             fp = paco.processing.fullpaco.FullPACO(image_stack = images,
                                                    angles = angles,
@@ -110,7 +117,8 @@ class PACOModule(ProcessingModule):
                                                    psf_rad = psf_rad,
                                                    px_scale = px_scale,
                                                    res_scale = self.m_scale,
-                                                   patch_area = self.m_patch_size)
+                                                   patch_area = self.m_patch_size,
+                                                   verbose = self.m_verbose)
         else:
             print("Please input either 'fastpaco' or 'fullpaco' for the algorithm")
 
@@ -123,14 +131,15 @@ class PACOModule(ProcessingModule):
                        cpu = cpu)
 
         snr = b/np.sqrt(a)
+        flux = b/a
         # Iterative, unbiased flux estimation
         if self.m_flux_calc:
             phi0s = fp.thresholdDetection(snr,self.m_threshold)
-            init = b[phi0s]
-            ests =  fp.fluxEstimate(phi0s,self.m_eps,init)
+            init = np.array([flux[int(phi0[0]),int(phi0[1])] for phi0 in phi0s])
+            ests =  np.array(fp.fluxEstimate(phi0s,self.m_eps,init))
         
         # Output
-        
+
         # Set all creates new data set/overwrites
         # Try MEMORY keyword -
         # database dataset (eg images)
@@ -139,5 +148,10 @@ class PACOModule(ProcessingModule):
         # set_attr() for output port 
         self.m_snr_out_port.set_all(snr, data_dim=2)
         self.m_snr_out_port.close_port()
-        self.m_flux_out_port.set_all(ests, data_dim=1)
-        self.m_snr_out_port.close_port()
+        self.m_flux_out_port.set_all(flux, data_dim=2)
+        self.m_flux_out_port.close_port()
+        self.m_source_flux_out_port.set_all(ests, data_dim=1)
+        self.m_source_flux_out_port.close_port()
+        self.m_source_posn_out_port.set_all(np.array(phi0s), data_dim=2)
+        self.m_source_posn_out_port.close_port()
+
