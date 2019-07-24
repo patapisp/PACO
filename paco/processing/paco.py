@@ -15,6 +15,7 @@ class PACO:
                  px_scale = 1,
                  res_scale = 1,
                  patch_area = 49,
+                 verbose = False
 ):
         """
         PACO Parent Class Constructor
@@ -33,6 +34,7 @@ class PACO:
         patch_are : int
             Number of pixels contained in a circular patch. Typical  values 13,49,113
         """
+        self.m_verbose = verbose
         self.m_im_stack = np.array(image_stack)
         self.m_nFrames = 0
         self.m_width = 0
@@ -46,22 +48,29 @@ class PACO:
             self.m_angles = angles
         self.m_pxscale = px_scale
         self.m_scale = res_scale
-        self.m_rescaled = False        
+        self.m_rescaled = False
+        print(psf_rad,px_scale)
         self.m_psf_rad = int(psf_rad/px_scale)
         if psf is not None:
             # How do we want to deal with stacks of psfs? Median? Just take the first one?
             if len(psf.shape)>2:
                 psf = psf[0]
             self.m_psf = psf
-            print(self.m_psf.shape)
-            self.m_pwidth = self.m_psf.shape[0]
-            print("here here here",self.m_pwidth)
             mask = createCircularMask(self.m_psf.shape,self.m_psf_rad)
-            self.m_psf_area = len(mask[mask])
+            self.m_psf_area = self.m_psf[mask].shape[0]
         else:
-            self.m_psf = psf
-            self.m_pwidth = 2*int(psf_rad*px_scale)
+            self.m_psf = None
             self.m_psf_area = patch_area
+        self.m_pwidth = 2*int(self.m_psf_rad) + 1
+        if self.m_verbose:
+            print("---------------------- ")
+            print("Summary of PACO setup: \n")
+            print("Image Cube shape = " + str(self.m_im_stack.shape))
+            print("PIXSCALE = " + str(self.m_pxscale).zfill(6))
+            print("PSF |  Area  |  Rad   |  Width | ")
+            print("    |   " + str(self.m_psf_area).zfill(2) + "   |   " + str(self.m_psf_rad).zfill(2) + "   |  " + str(self.m_psf.shape[0]).zfill(3) + "   | ")
+            print("Patch width: " + str(self.m_pwidth))
+            print("---------------------- \n")
         return
 
     def PACO(self,
@@ -92,6 +101,14 @@ class PACO:
             self.m_height -= 1
         if not self.m_rescaled:
             self.rescaleAll()
+        if self.m_verbose:
+            print("---------------------- ")
+            print("Using " + str(cpu) + " processor(s).")
+            print("Rescaled Image Cube shape: " + str(self.m_im_stack.shape))
+            print("Rescaled PSF")
+            print("PSF |  Area  |  Rad   |  Width | ")
+            print("    |   " + str(self.m_psf_area).zfill(2) + "   |   " + str(self.m_psf_rad).zfill(2) + "   |  " + str(self.m_pwidth).zfill(3) + "   | ")      
+            print("---------------------- \n")
         # Setup pixel coordinates
         x,y = np.meshgrid(np.arange(0,self.m_height),
                           np.arange(0,self.m_width))
@@ -257,7 +274,7 @@ class PACO:
     def fluxEstimate(self,
                      phi0s,
                      eps = 0.1,
-                     initial_est = 0.0):
+                     initial_est = [0.0]):
         """
         Unbiased estimate of the flux of a source located at p0
         The estimate of the flux is given by ahat * h, where h is the normalised PSF template
@@ -277,24 +294,19 @@ class PACO:
         model_name: method
             Name of the template for the off-axis PSF
         """
-        npx = self.m_width*self.m_height  # Number of pixels in an image
-        dim = self.m_width/2
-        try:
-            assert (dim).is_integer()
-        except AssertionError:
-            print("Image cannot be properly rotated.")
-            sys.exit(1)
-        dim = int(dim)
+        if self.m_verbose:
+            print("Estimating the flux")
+            print(phi0s)
+            print(initial_est)
         print("Computing unbiased flux estimate...")
         
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches                       
-        mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)
-        if self.m_psf_area != len(mask[mask]):
-            self.m_psf_area = len(mask[mask])      
+        mask =  createCircularMask((self.m_pwidth,self.m_pwidth),radius = self.m_psf_rad)
+        psf_mask = createCircularMask(self.m_psf.shape,radius = self.m_psf_rad)     
         h = np.zeros((self.m_nFrames,self.m_psf_area)) # The off axis PSF at each point
-        
+    
         # Create arrays needed for storage
         # Store for each image pixel, for each temporal frame an image
         # for patches: for each time, we need to store a column of patches
@@ -309,7 +321,7 @@ class PACO:
             # Fill patches and signal template
             for l,ang in enumerate(angles_px):
                 patch[l] = self.getPatch(ang, self.m_pwidth, mask) # Get the column of patches at this point
-                h[l] = self.m_psf[mask]
+                h[l] = self.m_psf[psf_mask]
 
             # the mean of a temporal column of patches at each pixel
             m     = np.zeros((self.m_nFrames,self.m_psf_area))
@@ -317,11 +329,8 @@ class PACO:
             Cinv  = np.zeros((self.m_nFrames,self.m_psf_area,self.m_psf_area))
             
             # Unbiased flux estimation
-            if isinstance(initial_est, list):
-                ahat = initial_est[i]
-            else:
-                ahat = initial_est
-            aprev = 999999.0 # Arbitrary large value so that the loop will run   
+            ahat = initial_est[i]/2.0
+            aprev = 9999.0 # Arbitrary large value so that the loop will run   
             while (np.abs(ahat - aprev) > (ahat * eps)):
                 a = 0.0
                 b = 0.0
