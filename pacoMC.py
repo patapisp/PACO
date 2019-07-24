@@ -36,17 +36,29 @@ psig = [(30,30)]
 nProcess = min(nTrials,8)
 np.random.seed(4096)
 
-OUTPUT_DIR = "output/MC_V3/"
+OUTPUT_DIR = "output/MC_V5/"
 def GenerateImageStack(nFrames,angles,signalStrength,noiseLevel,dim = 100):  
     # Hardcoded source location
     p0 = (30,30)
     mean = 0
 
+    # Try to insert 5 sources from 1sigma to 5 at various known locations
     images = [np.reshape(np.random.normal(mean, noiseLevel, dim**2), (dim,dim)) for j in range(nFrames)]
     X,Y = np.meshgrid(np.arange(-dim/2, dim/2),np.arange(-dim/2, dim))
-    xx, yy = np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
+    xx, yy = np.meshgrid(np.arange(-20, dim-20),np.arange(-20, dim-20))
     s = gaussian2d(xx,yy,signalStrength/nFrames, 2)
 
+    xx1, yy1 = np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
+    s1 = gaussian2d(xx,yy,signalStrength/nFrames, 2)
+
+    xx2, yy2 = np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
+    s2 = gaussian2d(xx,yy,signalStrength/nFrames, 2)
+
+    xx3, yy3= np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
+    s3 = gaussian2d(xx,yy,signalStrength/nFrames, 2)
+
+    xx4, yy4 = np.meshgrid(np.arange(-30, dim-30),np.arange(-30, dim-30))
+    s4 = gaussian2d(xx,yy,signalStrength/nFrames, 2)
     #images_signal = [i + s for i in images]
     rot_noise = np.array([rotateImage(images[j], angles[j]) for j in range(nFrames)])
     rot_sigs = np.array([rotateImage(s, angles[j]) for j in range(nFrames)])
