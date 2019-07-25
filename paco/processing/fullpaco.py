@@ -12,9 +12,11 @@ class FullPACO(PACO):
     """
     Algorithm Functions
     """     
-    def PACOCalc(self, phi0s, cpu = 1):
+    def PACOCalc(self,
+                 phi0s,
+                 cpu = 1):
         """
-        PACO_calc
+        PACOCalc
         
         This function iterates of a list of test points (phi0) and a list
         of angles between frames to produce 'a' and b', which can be used to
@@ -22,18 +24,12 @@ class FullPACO(PACO):
         
         phi0s : int arr
             Array of pixel locations to estimate companion position
-        params: dict
-            Dictionary of parameters about the psf, containing either the width
-            of a gaussian distribution, or a label 'psf_template'
-        scale : float
-            Resolution scaling
-        model_name: str
-            Name of the template for the off-axis PSF
         cpu : int >= 1
             Number of cores to use for parallel processing. Not yet implemented.
         """  
         npx = len(phi0s)  # Number of pixels in an image
         dim = self.m_width/2
+        
         a = np.zeros(npx) # Setup output arrays
         b = np.zeros(npx)
         T = len(self.m_im_stack) # Number of temporal frames
@@ -49,12 +45,12 @@ class FullPACO(PACO):
         patch = np.zeros((self.m_nFrames,self.m_nFrames,self.m_psf_area))
 
         # the mean of a temporal column of patches at each pixel
-        m     = np.zeros((self.m_nFrames,self.m_psf_area))
+        m = np.zeros((self.m_nFrames,self.m_psf_area))
         # the inverse covariance matrix at each point
-        Cinv  = np.zeros((self.m_nFrames,self.m_psf_area,self.m_psf_area))
+        Cinv = np.zeros((self.m_nFrames,self.m_psf_area,self.m_psf_area))
 
 
-        print("Running PACO...")
+        print("Running Full PACO...")
         
         # Set up coordinates so 0 is at the center of the image                     
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))
@@ -62,9 +58,6 @@ class FullPACO(PACO):
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):
-            #if(i%(npx/10) == 0):
-            #    print(str(i/100) + "%")
-                
             # Get list of pixels for each rotation angle
             angles_px = getRotatedPixels(x,y,p0,self.angles)
             

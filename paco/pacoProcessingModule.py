@@ -6,21 +6,19 @@ import numpy as np
 class PACOModule(ProcessingModule):
     def __init__(self,
                  name_in = "paco",
-                 image_in_tag = "im_arr",
-                 psf_in_tag = None,
+                 image_in_tag = "science",
+                 psf_in_tag = "psf",
                  snr_out_tag = "paco_snr",
                  flux_out_tag = "paco_flux",
-                 psf_model = None,
-                 angles = None,
                  psf_rad = 4,
-                 patch_size = 49,
                  scaling = 1.0,
                  algorithm = "fastpaco",
                  flux_calc = True,
                  psf_params = None,
-                 cpu_limit = 1,
                  threshold = 5.0,
                  flux_prec = 0.05,
+                 psf_model = None,
+                 patch_size = 49,
                  verbose = False
     ):
         """
@@ -65,33 +63,27 @@ class PACOModule(ProcessingModule):
             
         self.m_algorithm = algorithm
         self.m_patch_size = patch_size
-        self.m_angles = angles
         self.m_flux_calc = flux_calc
         self.m_scale = scaling
         self.m_psf_params = psf_params
         self.m_psf_rad = psf_rad
-        self.m_cpu_lim = cpu_limit
         self.m_model_function = psf_model
         self.m_eps = flux_prec
         self.m_threshold = threshold
         self.m_verbose = verbose
+        
     def run(self):
         """
         Run function for PACO
         """
         # Hardware settings
         cpu = self._m_config_port.get_attribute("CPU")
-        if cpu>self.m_cpu_lim:
-            cpu = self.m_cpu_lim
         # Read in science frames and psf model
         # Should add existance checks
         images = self.m_image_in_port.get_all()
         
         # Read in parallactic angles, and use the first frame as the 0 reference.
-        if self.m_angles is not None:
-            angles = self.m_angles
-        else:
-            angles = self.m_image_in_port.get_attribute("PARANG")
+        angles = self.m_image_in_port.get_attribute("PARANG")
         angles = angles - angles[0]
 
         px_scale = self.m_image_in_port.get_attribute("PIXSCALE")
@@ -124,8 +116,6 @@ class PACOModule(ProcessingModule):
 
         
         # Run PACO
-        # SNR = b/sqrt(a)
-        # Flux estimate = b/a
         a,b  = fp.PACO(model_params = self.m_psf_params,
                        model_name = self.m_model_function,
                        cpu = cpu)

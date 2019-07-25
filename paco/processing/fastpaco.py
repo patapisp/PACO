@@ -8,11 +8,10 @@ from paco.util.util import *
 from .paco import PACO
 from multiprocessing import Pool
 
-import matplotlib.pyplot as plt
 import sys,os
 import time
 
-#Pacito
+#PACitO
 class FastPACO(PACO):
     """
     Algorithm Functions
@@ -21,7 +20,7 @@ class FastPACO(PACO):
                  phi0s,
                  cpu = 1):
         """
-        PACO_calc
+        PACOCalc
         
         This function iterates of a list of test points (phi0) and a list
         of angles between frames to produce 'a' and b', which can be used to
@@ -29,13 +28,6 @@ class FastPACO(PACO):
         
         phi0s : int arr
             Array of pixel locations to estimate companion position
-        params: dict
-            Dictionary of parameters about the psf, containing either the width
-            of a gaussian distribution, or a label 'psf_template'
-        scale : float
-            Resolution scaling
-        model_name: str
-            Name of the template for the off-axis PSF
         cpu : int >= 1
             Number of cores to use for parallel processing
         """      
@@ -59,7 +51,7 @@ class FastPACO(PACO):
         # Currently forcing integer grid, but meshgrid takes floats as arguments...
         x, y = np.meshgrid(np.arange(-dim, dim), np.arange(-dim, dim))    
 
-        print("Running PACO...")
+        print("Running Fast PACO...")
         # Loop over all pixels
         # i is the same as theta_k in the PACO paper
         for i,p0 in enumerate(phi0s):

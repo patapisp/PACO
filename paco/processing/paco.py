@@ -1,5 +1,7 @@
 """
-This file will implement ALGORITHM 1 from the PACO paper
+This class implements the generic outline of the PACO algorithms,
+which is directly implemented through the FastPACO and FullPACO 
+classes.
 """
 from paco.util.util import *
 import scipy.ndimage as ndimage
